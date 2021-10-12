@@ -27,12 +27,12 @@ func New(version string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
 			DataSourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用data字段获取
-				"hashdata_database_data_source": dataSourceScaffolding(),
+				"scaffolding_data_source": dataSourceScaffolding(),
 			},
 			ResourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用resource字段获取
-				"hashdata_database_warehouse": resourceWarehouse(),
-				"hashdata_database_catalog":   resourceCatalog(),
-				"hashdata_database_computing": resourceComputing(),
+				"scaffolding_warehouse": resourceWarehouse(),
+				"scaffolding_catalog":   resourceCatalog(),
+				"scaffolding_computing": resourceComputing(),
 			},
 		}
 		p.ConfigureContextFunc = configure(version, p)
