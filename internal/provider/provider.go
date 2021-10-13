@@ -27,7 +27,7 @@ func New(version string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
 			DataSourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用data字段获取
-				"scaffolding_data_source": dataSourceScaffolding(),
+				"scaffolding_data_source": dataSourceEmpty(),
 			},
 			ResourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用resource字段获取
 				"scaffolding_warehouse": resourceWarehouse(),
