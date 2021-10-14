@@ -2,9 +2,9 @@ package provider
 
 import (
 	"context"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"os"
 )
 
 func init() {
@@ -35,23 +35,43 @@ func New(version string) func() *schema.Provider {
 				"scaffolding_computing": resourceComputing(),
 			},
 		}
-		p.ConfigureContextFunc = configure(version, p)
+		p.ConfigureContextFunc = configure
 		return p
 	}
 }
 
-type apiClient struct {
-	// Add whatever fields, client or connection info, etc. here
-	// you would need to setup to communicate with the upstream
-	// API.
-}
-
-func configure(version string, p *schema.Provider) func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	return func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
-		// Setup a User-Agent for your API client (replace the provider name for yours):
-		// userAgent := p.UserAgent("terraform-provider-scaffolding", version)
-		// TODO: myClient.UserAgent = userAgent
-
-		return &apiClient{}, nil
+func configure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+	accesskey, ok := d.GetOk("access_key")
+	if !ok {
+		accesskey = os.Getenv("HASHDATA_ACCESS_KEY")
 	}
+	secretkey, ok := d.GetOk("secret_key")
+	if !ok {
+		secretkey = os.Getenv("HASHDATA_SECRET_KEY")
+	}
+	zone, ok := d.GetOk("zone")
+	if !ok {
+		zone = os.Getenv("HASHDATA_ZONE")
+		if zone == "" {
+			zone = "DEFAULT_ZONE" //TODO 默认区
+		}
+	}
+	endpoint, ok := d.GetOk("endpoint")
+	if !ok {
+		endpoint = os.Getenv("HASHDATA_ENDPOINT")
+		if endpoint == "" {
+			endpoint = "DEFAULT_ENDPOINT" //TODO 默认endpoint
+		}
+	}
+	config := Config{
+		AccessKey: accesskey.(string),
+		SecretKey: secretkey.(string),
+		Zone:      accesskey.(string),
+		EndPoint:  endpoint.(string),
+	}
+	client, err := config.Client() // TODO 校验参数啥的
+	if err != nil {
+		return nil, diag.Errorf(err.Error())
+	}
+	return client, nil
 }
