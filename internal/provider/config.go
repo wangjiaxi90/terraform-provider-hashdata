@@ -5,10 +5,10 @@ import (
 )
 
 type Config struct {
-	//AccessKey string
-	//SecretKey string
-	//Zone      string
-	//EndPoint  string
+	AccessKey string
+	SecretKey string
+	Zone      string
+	EndPoint  string
 }
 
 func (c *Config) Client() (interface{}, error) {

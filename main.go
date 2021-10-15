@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/hashicorp/terraform-provider-scaffolding/internal/provider"
+	"github.com/wangjiaxi90/terraform-provider-scaffolding/internal/provider"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -18,7 +18,7 @@ import (
 var (
 	// these will be set by the goreleaser configuration
 	// to appropriate values for the compiled binary
-	version = "0.0.5"
+	version = "0.0.6"
 
 	// goreleaser can also pass the specific commit if you want
 	// commit  string = ""
