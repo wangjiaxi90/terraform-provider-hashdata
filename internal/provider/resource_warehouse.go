@@ -3,11 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/wangjiaxi90/terraform-provider-scaffolding/internal/provider/cloudmgr"
-	"os"
-
+	huge "github.com/dablelv/go-huge-util"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/wangjiaxi90/terraform-provider-scaffolding/internal/provider/cloudmgr"
+	"os"
 )
 
 func resourceWarehouse() *schema.Resource {
@@ -21,9 +21,33 @@ func resourceWarehouse() *schema.Resource {
 		DeleteContext: resourceWarehouseDelete,
 
 		Schema: map[string]*schema.Schema{
-			"warehouse_param": {
-				// This description is used by the documentation generator and the language server.
-				Description: "warehouse param.",
+			"master": {
+				Description: "master.",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"segment": {
+				Description: "segment.",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"extra": {
+				Description: "extra.",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"metadata": {
+				Description: "extra.",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"feature": {
+				Description: "extra.",
+				Type:        schema.TypeMap,
+				Optional:    true,
+			},
+			"name": {
+				Description: "extra.",
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
@@ -34,7 +58,10 @@ func resourceWarehouse() *schema.Resource {
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	// use the meta value to retrieve your client from the provider configure method
 	// client := meta.(*apiClient)
-
+	fmt.Println("================================")
+	s, _ := huge.ToIndentJSON(&d)
+	fmt.Printf("schema=%v\n", s)
+	fmt.Println("================================")
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 
 	configuration := cloudmgr.NewConfiguration() //TODO
@@ -73,10 +100,10 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	metadataProperties := d.Get("metadata").(map[string]interface{})
 	var metadata = make(map[string]interface{})
-	metadata["default_database"] = metadataProperties["defaultDatabase"].(string)
-	metadata["default_user"] = metadataProperties["defaultUser"].(string)
-	metadata["default_password"] = metadataProperties["defaultPassword"].(string)
-	metadata["logic_part"] = metadataProperties["logicPart"].(string)
+	metadata["default_database"] = metadataProperties["default_database"].(string)
+	metadata["default_user"] = metadataProperties["default_user"].(string)
+	metadata["default_password"] = metadataProperties["default_password"].(string)
+	metadata["logic_part"] = metadataProperties["logic_part"].(string)
 
 	featureProperties := d.Get("feature").(map[string]interface{})
 	feature := cloudmgr.CoreCreateServiceFeatureRequest{
