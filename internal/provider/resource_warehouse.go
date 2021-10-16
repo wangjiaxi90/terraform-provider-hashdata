@@ -68,7 +68,9 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	apiClient := cloudmgr.NewAPIClient(configuration)
 
 	masterProperties := d.Get("master").(map[string]interface{}) //TODO  master.iaas 是不是这么调用
-
+	diag.Errorf("schema=%v\n", s)
+	q, _ := huge.ToIndentJSON(&masterProperties)
+	diag.Errorf("masterProperties=%v\n", q)
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
 			Count:        masterProperties["count"].(*int32), //TODO 可以在这里统计参数 这块加 【*】  对不对？
