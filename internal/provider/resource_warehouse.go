@@ -24,26 +24,151 @@ func resourceWarehouse() *schema.Resource {
 				Description: "master.",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"count": {
+							Description: "master count.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"instance_type": {
+							Description: "master instance_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_type": {
+							Description: "master volume_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_size": {
+							Description: "master volume_size.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"image": {
+							Description: "master image.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"zone": {
+							Description: "master zone.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
 			},
 			"segment": {
 				Description: "segment.",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"count": {
+							Description: "segment count.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"instance_type": {
+							Description: "segment instance_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_type": {
+							Description: "segment volume_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_size": {
+							Description: "segment volume_size.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"image": {
+							Description: "segment image.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"zone": {
+							Description: "segment zone.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
 			},
 			"extra": {
 				Description: "extra.",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"vpc": {
+							Description: "vpc.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"subnet": {
+							Description: "subnet.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"keypair": {
+							Description: "keypair.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
 			},
 			"metadata": {
 				Description: "extra.",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"default_database": {
+							Description: "default_database.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"default_user": {
+							Description: "default_user.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"default_password": {
+							Description: "default_password.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"logic_part": {
+							Description: "logic_part.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
 			},
 			"feature": {
 				Description: "extra.",
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"local_storage": {
+							Description: "is_local_storage.",
+							Type:        schema.TypeBool,
+							Optional:    true,
+						},
+						"mirror_standby": {
+							Description: "is_mirror_standby.",
+							Type:        schema.TypeBool,
+							Optional:    true,
+						},
+					},
+				},
 			},
 			"name": {
 				Description: "extra.",
@@ -106,8 +231,8 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	featureProperties := d.Get("feature").(map[string]interface{})
 	feature := cloudmgr.CoreCreateServiceFeatureRequest{
-		LocalStorage:  Bool(featureProperties["is_local_storage"].(bool)),
-		MirrorStandby: Bool(featureProperties["is_mirror_standby"].(bool)),
+		LocalStorage:  Bool(featureProperties["local_storage"].(bool)),
+		MirrorStandby: Bool(featureProperties["mirror_standby"].(bool)),
 	}
 	name := d.Get("name").(string) //TODO 记得加这个参数
 	body.Name = &name
@@ -117,7 +242,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	body.Metadata = &metadata
 	body.Features = &feature
 
-	if featureProperties["is_local_storage"].(bool) {
+	if featureProperties["local_storage"].(bool) {
 		ossProperties := d.Get("oss").(map[string]interface{})
 		oss := cloudmgr.CoreCreateServiceOssZoneRequest{
 			Name: String(ossProperties["name"].(string)),
@@ -125,7 +250,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		body.Oss = &oss
 	}
 
-	if featureProperties["is_mirror_standby"].(bool) {
+	if featureProperties["mirror_standby"].(bool) {
 		standbyProperties := d.Get("standby").(map[string]interface{})
 		standby := cloudmgr.CoreCreateServiceComponentRequest{
 			Iaas: &cloudmgr.CloudmgrcoreIaasResource{
