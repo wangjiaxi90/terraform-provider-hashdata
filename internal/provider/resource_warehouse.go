@@ -20,155 +20,192 @@ func resourceWarehouse() *schema.Resource {
 		DeleteContext: resourceWarehouseDelete,
 
 		Schema: map[string]*schema.Schema{
+			//"master": {
+			//	Description: "master.",
+			//	Type:        schema.TypeList,
+			//	Optional:    true,
+			//	Elem: &schema.Resource{
+			//		Schema: map[string]*schema.Schema{
+			//			"count": {
+			//				Description: "master count.",
+			//				Type:        schema.TypeInt,
+			//				Optional:    true,
+			//			},
+			//			"instance_type": {
+			//				Description: "master instance_type.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"volume_type": {
+			//				Description: "master volume_type.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"volume_size": {
+			//				Description: "master volume_size.",
+			//				Type:        schema.TypeInt,
+			//				Optional:    true,
+			//			},
+			//			"image": {
+			//				Description: "master image.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"zone": {
+			//				Description: "master zone.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//		},
+			//	},
+			//},
+			//"segment": {
+			//	Description: "segment.",
+			//	Type:        schema.TypeList,
+			//	Optional:    true,
+			//	Elem: &schema.Resource{
+			//		Schema: map[string]*schema.Schema{
+			//			"count": {
+			//				Description: "segment count.",
+			//				Type:        schema.TypeInt,
+			//				Optional:    true,
+			//			},
+			//			"instance_type": {
+			//				Description: "segment instance_type.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"volume_type": {
+			//				Description: "segment volume_type.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"volume_size": {
+			//				Description: "segment volume_size.",
+			//				Type:        schema.TypeInt,
+			//				Optional:    true,
+			//			},
+			//			"image": {
+			//				Description: "segment image.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"zone": {
+			//				Description: "segment zone.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//		},
+			//	},
+			//},
+			//"extra": {
+			//	Description: "extra.",
+			//	Type:        schema.TypeList,
+			//	Optional:    true,
+			//	Elem: &schema.Resource{
+			//		Schema: map[string]*schema.Schema{
+			//			"vpc": {
+			//				Description: "vpc.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"subnet": {
+			//				Description: "subnet.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"keypair": {
+			//				Description: "keypair.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//		},
+			//	},
+			//},
+			//"metadata": {
+			//	Description: "metadata.",
+			//	Type:        schema.TypeList,
+			//	Optional:    true,
+			//	Elem: &schema.Resource{
+			//		Schema: map[string]*schema.Schema{
+			//			"default_database": {
+			//				Description: "default_database.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"default_user": {
+			//				Description: "default_user.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"default_password": {
+			//				Description: "default_password.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//			"logic_part": {
+			//				Description: "logic_part.",
+			//				Type:        schema.TypeString,
+			//				Optional:    true,
+			//			},
+			//		},
+			//	},
+			//},
+			//"feature": {
+			//	Description: "feature.",
+			//	Type:        schema.TypeList,
+			//	Optional:    true,
+			//	Elem: &schema.Resource{
+			//		Schema: map[string]*schema.Schema{
+			//			"local_storage": {
+			//				Description: "is_local_storage.",
+			//				Type:        schema.TypeBool,
+			//				Optional:    true,
+			//			},
+			//			"mirror_standby": {
+			//				Description: "is_mirror_standby.",
+			//				Type:        schema.TypeBool,
+			//				Optional:    true,
+			//			},
+			//		},
+			//	},
+			//},
+			//"name": {
+			//	Description: "name.",
+			//	Type:        schema.TypeString,
+			//	Optional:    true,
+			//},
+			//&schema.Schema{Type: schema.TypeString},
+
 			"master": {
 				Description: "master.",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"count": {
-							Description: "master count.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"instance_type": {
-							Description: "master instance_type.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"volume_type": {
-							Description: "master volume_type.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"volume_size": {
-							Description: "master volume_size.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "master image.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"zone": {
-							Description: "master zone.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-					},
-				},
+				Elem: &schema.Schema{Type: schema.TypeString},
 			},
 			"segment": {
 				Description: "segment.",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"count": {
-							Description: "segment count.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"instance_type": {
-							Description: "segment instance_type.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"volume_type": {
-							Description: "segment volume_type.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"volume_size": {
-							Description: "segment volume_size.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "segment image.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"zone": {
-							Description: "segment zone.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-					},
-				},
+				Elem: &schema.Schema{Type: schema.TypeString},
 			},
 			"extra": {
 				Description: "extra.",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"vpc": {
-							Description: "vpc.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"subnet": {
-							Description: "subnet.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"keypair": {
-							Description: "keypair.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-					},
-				},
+				Elem: &schema.Schema{Type: schema.TypeString},
 			},
 			"metadata": {
 				Description: "metadata.",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"default_database": {
-							Description: "default_database.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"default_user": {
-							Description: "default_user.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"default_password": {
-							Description: "default_password.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-						"logic_part": {
-							Description: "logic_part.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
-					},
-				},
+				Elem: &schema.Schema{Type: schema.TypeString},
 			},
 			"feature": {
 				Description: "feature.",
 				Type:        schema.TypeList,
 				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"local_storage": {
-							Description: "is_local_storage.",
-							Type:        schema.TypeBool,
-							Optional:    true,
-						},
-						"mirror_standby": {
-							Description: "is_mirror_standby.",
-							Type:        schema.TypeBool,
-							Optional:    true,
-						},
-					},
-				},
+				Elem: &schema.Schema{Type: schema.TypeString},
 			},
 			"name": {
 				Description: "name.",
