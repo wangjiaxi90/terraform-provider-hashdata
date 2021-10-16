@@ -22,7 +22,7 @@ func resourceWarehouse() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"master": {
 				Description: "master.",
-				Type:        schema.TypeMap,
+				Type:        schema.TypeList,
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -61,7 +61,7 @@ func resourceWarehouse() *schema.Resource {
 			},
 			"segment": {
 				Description: "segment.",
-				Type:        schema.TypeMap,
+				Type:        schema.TypeList,
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -100,7 +100,7 @@ func resourceWarehouse() *schema.Resource {
 			},
 			"extra": {
 				Description: "extra.",
-				Type:        schema.TypeMap,
+				Type:        schema.TypeList,
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -123,8 +123,8 @@ func resourceWarehouse() *schema.Resource {
 				},
 			},
 			"metadata": {
-				Description: "extra.",
-				Type:        schema.TypeMap,
+				Description: "metadata.",
+				Type:        schema.TypeList,
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -152,8 +152,8 @@ func resourceWarehouse() *schema.Resource {
 				},
 			},
 			"feature": {
-				Description: "extra.",
-				Type:        schema.TypeMap,
+				Description: "feature.",
+				Type:        schema.TypeList,
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -171,7 +171,7 @@ func resourceWarehouse() *schema.Resource {
 				},
 			},
 			"name": {
-				Description: "extra.",
+				Description: "name.",
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
