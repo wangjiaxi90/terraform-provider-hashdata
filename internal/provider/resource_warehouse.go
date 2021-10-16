@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	huge "github.com/dablelv/go-huge-util"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-scaffolding/internal/provider/cloudmgr"
@@ -54,50 +53,48 @@ func resourceWarehouse() *schema.Resource {
 		},
 	}
 }
-
+func Int(v int32) *int32 {
+	return &v
+}
+func String(v string) *string {
+	return &v
+}
+func Bool(v bool) *bool {
+	return &v
+}
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-	fmt.Println("================================")
-	s, _ := huge.ToIndentJSON(&d)
-	fmt.Printf("schema=%v\n", s)
-	fmt.Println("================================")
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 
 	configuration := cloudmgr.NewConfiguration() //TODO
 	apiClient := cloudmgr.NewAPIClient(configuration)
-
 	masterProperties := d.Get("master").(map[string]interface{}) //TODO  master.iaas 是不是这么调用
-	diag.Errorf("schema=%v\n", s)
-	q, _ := huge.ToIndentJSON(&masterProperties)
-	diag.Errorf("masterProperties=%v\n", q)
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        masterProperties["count"].(*int32), //TODO 可以在这里统计参数 这块加 【*】  对不对？
-			InstanceType: masterProperties["instance_type"].(*string),
-			VolumeType:   masterProperties["volume_type"].(*string),
-			VolumeSize:   masterProperties["volume_size"].(*int32),
-			Image:        masterProperties["image"].(*string),
-			Zone:         masterProperties["zone"].(*string),
+			Count:        Int(masterProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			InstanceType: String(masterProperties["instance_type"].(string)),
+			VolumeType:   String(masterProperties["volume_type"].(string)),
+			VolumeSize:   Int(masterProperties["volume_size"].(int32)),
+			Image:        String(masterProperties["image"].(string)),
+			Zone:         String(masterProperties["zone"].(string)),
 		},
 	}
 
 	segmentProperties := d.Get("segment").(map[string]interface{})
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        segmentProperties["count"].(*int32),
-			InstanceType: segmentProperties["instance_type"].(*string),
-			VolumeType:   segmentProperties["volume_type"].(*string),
-			VolumeSize:   segmentProperties["volume_size"].(*int32),
-			Image:        segmentProperties["image"].(*string),
-			Zone:         segmentProperties["zone"].(*string),
+			Count:        Int(segmentProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			InstanceType: String(segmentProperties["instance_type"].(string)),
+			VolumeType:   String(segmentProperties["volume_type"].(string)),
+			VolumeSize:   Int(segmentProperties["volume_size"].(int32)),
+			Image:        String(segmentProperties["image"].(string)),
+			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
 	extraProperties := d.Get("extra").(map[string]interface{})
 	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
-		Vpc:     extraProperties["vpc"].(*string),
-		Subnet:  extraProperties["subnet"].(*string),
-		Keypair: extraProperties["keypair"].(*string),
+		Vpc:     String(extraProperties["vpc"].(string)),
+		Subnet:  String(extraProperties["subnet"].(string)),
+		Keypair: String(extraProperties["keypair"].(string)),
 	}
 
 	metadataProperties := d.Get("metadata").(map[string]interface{})
@@ -109,8 +106,8 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	featureProperties := d.Get("feature").(map[string]interface{})
 	feature := cloudmgr.CoreCreateServiceFeatureRequest{
-		LocalStorage:  featureProperties["is_local_storage"].(*bool),
-		MirrorStandby: featureProperties["is_mirror_standby"].(*bool),
+		LocalStorage:  Bool(featureProperties["is_local_storage"].(bool)),
+		MirrorStandby: Bool(featureProperties["is_mirror_standby"].(bool)),
 	}
 	name := d.Get("name").(string) //TODO 记得加这个参数
 	body.Name = &name
@@ -123,7 +120,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	if featureProperties["is_local_storage"].(bool) {
 		ossProperties := d.Get("oss").(map[string]interface{})
 		oss := cloudmgr.CoreCreateServiceOssZoneRequest{
-			Name: ossProperties["name"].(*string),
+			Name: String(ossProperties["name"].(string)),
 		}
 		body.Oss = &oss
 	}
@@ -132,12 +129,12 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		standbyProperties := d.Get("standby").(map[string]interface{})
 		standby := cloudmgr.CoreCreateServiceComponentRequest{
 			Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-				Count:        standbyProperties["count"].(*int32),
-				InstanceType: standbyProperties["instance_type"].(*string),
-				VolumeType:   standbyProperties["volume_type"].(*string),
-				VolumeSize:   standbyProperties["volume_size"].(*int32),
-				Image:        standbyProperties["image"].(*string),
-				Zone:         standbyProperties["zone"].(*string),
+				Count:        Int(standbyProperties["count"].(int32)),
+				InstanceType: String(standbyProperties["instance_type"].(string)),
+				VolumeType:   String(standbyProperties["volume_type"].(string)),
+				VolumeSize:   Int(standbyProperties["volume_size"].(int32)),
+				Image:        String(standbyProperties["image"].(string)),
+				Zone:         String(standbyProperties["zone"].(string)),
 			},
 		}
 		body.Standby = &standby
