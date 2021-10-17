@@ -143,9 +143,14 @@ func resourceWarehouse() *schema.Resource {
 							Type:        schema.TypeString,
 							Optional:    true,
 						},
+						"number_segments": {
+							Description: "number_segments.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
 						"logic_part": {
 							Description: "logic_part.",
-							Type:        schema.TypeString,
+							Type:        schema.TypeInt,
 							Optional:    true,
 						},
 					},
@@ -175,7 +180,6 @@ func resourceWarehouse() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
-
 		},
 	}
 }
@@ -193,7 +197,13 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	configuration := cloudmgr.NewConfiguration() //TODO
 	apiClient := cloudmgr.NewAPIClient(configuration)
-	masterProperties := d.Get("master").(map[string]interface{}) //TODO  master.iaas 是不是这么调用
+	masterPropertiesRaw := d.Get("master").(*schema.Set).List() //TODO  master.iaas 是不是这么调用
+	var masterProperties map[string]interface{}
+	for _, raw := range masterPropertiesRaw {
+		masterProperties = raw.(map[string]interface{})
+		break
+	}
+
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
 			Count:        Int(masterProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
@@ -205,7 +215,12 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		},
 	}
 
-	segmentProperties := d.Get("segment").(map[string]interface{})
+	segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
+	var segmentProperties map[string]interface{}
+	for _, raw := range segmentPropertiesRaw {
+		segmentProperties = raw.(map[string]interface{})
+		break
+	}
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
 			Count:        Int(segmentProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
@@ -216,21 +231,36 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
-	extraProperties := d.Get("extra").(map[string]interface{})
+	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
+	var extraProperties map[string]interface{}
+	for _, raw := range extraPropertiesRaw {
+		extraProperties = raw.(map[string]interface{})
+		break
+	}
 	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
 		Vpc:     String(extraProperties["vpc"].(string)),
 		Subnet:  String(extraProperties["subnet"].(string)),
 		Keypair: String(extraProperties["keypair"].(string)),
 	}
 
-	metadataProperties := d.Get("metadata").(map[string]interface{})
+	metadataPropertiesRaw := d.Get("metadata").(*schema.Set).List()
+	var metadataProperties map[string]interface{}
+	for _, raw := range metadataPropertiesRaw {
+		metadataProperties = raw.(map[string]interface{})
+		break
+	}
 	var metadata = make(map[string]interface{})
 	metadata["default_database"] = metadataProperties["default_database"].(string)
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
 	metadata["logic_part"] = metadataProperties["logic_part"].(string)
 
-	featureProperties := d.Get("feature").(map[string]interface{})
+	featurePropertiesRaw := d.Get("feature").(*schema.Set).List()
+	var featureProperties map[string]interface{}
+	for _, raw := range featurePropertiesRaw {
+		featureProperties = raw.(map[string]interface{})
+		break
+	}
 	feature := cloudmgr.CoreCreateServiceFeatureRequest{
 		LocalStorage:  Bool(featureProperties["local_storage"].(bool)),
 		MirrorStandby: Bool(featureProperties["mirror_standby"].(bool)),
