@@ -257,7 +257,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	metadata["default_database"] = metadataProperties["default_database"].(string)
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
-	metadata["logic_part"] = metadataProperties["logic_part"].(string)
+	metadata["logic_part"] = metadataProperties["logic_part"].(int)
 
 	featurePropertiesRaw := d.Get("feature").(*schema.Set).List()
 	var featureProperties map[string]interface{}
