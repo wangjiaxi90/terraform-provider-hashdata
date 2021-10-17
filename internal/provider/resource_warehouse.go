@@ -183,6 +183,10 @@ func resourceWarehouse() *schema.Resource {
 		},
 	}
 }
+func Int32(v int) *int32 {
+	t := int32(v)
+	return &t
+}
 func Int(v int32) *int32 {
 	return &v
 }
@@ -206,10 +210,10 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int(masterProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			Count:        Int32(masterProperties["count"].(int)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
-			VolumeSize:   Int(masterProperties["volume_size"].(int32)),
+			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
 			Image:        String(masterProperties["image"].(string)),
 			Zone:         String(masterProperties["zone"].(string)),
 		},
@@ -223,10 +227,10 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int(segmentProperties["count"].(int32)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			Count:        Int32(segmentProperties["count"].(int)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
 			InstanceType: String(segmentProperties["instance_type"].(string)),
 			VolumeType:   String(segmentProperties["volume_type"].(string)),
-			VolumeSize:   Int(segmentProperties["volume_size"].(int32)),
+			VolumeSize:   Int32(segmentProperties["volume_size"].(int)),
 			Image:        String(segmentProperties["image"].(string)),
 			Zone:         String(segmentProperties["zone"].(string)),
 		},
@@ -285,10 +289,10 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		standbyProperties := d.Get("standby").(map[string]interface{})
 		standby := cloudmgr.CoreCreateServiceComponentRequest{
 			Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-				Count:        Int(standbyProperties["count"].(int32)),
+				Count:        Int32(standbyProperties["count"].(int)),
 				InstanceType: String(standbyProperties["instance_type"].(string)),
 				VolumeType:   String(standbyProperties["volume_type"].(string)),
-				VolumeSize:   Int(standbyProperties["volume_size"].(int32)),
+				VolumeSize:   Int32(standbyProperties["volume_size"].(int)),
 				Image:        String(standbyProperties["image"].(string)),
 				Zone:         String(standbyProperties["zone"].(string)),
 			},
