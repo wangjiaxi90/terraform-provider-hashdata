@@ -36,43 +36,58 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	// client := meta.(*apiClient)
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 
-	configuration := cloudmgr.NewConfiguration() //TODO
+	configuration := cloudmgr.NewConfiguration() //TODO 客户端的生成
 	apiClient := cloudmgr.NewAPIClient(configuration)
 
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
 
-	masterProperties := d.Get("master").(map[string]interface{}) //TODO  master.iaas 是不是这么调用
+	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
+	var masterProperties map[string]interface{}
+	for _, raw := range masterPropertiesRaw {
+		masterProperties = raw.(map[string]interface{})
+		break
+	}
 
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        masterProperties["count"].(*int32), //TODO 可以在这里统计参数 这块加 【*】  对不对？
-			InstanceType: masterProperties["instance_type"].(*string),
-			VolumeType:   masterProperties["volume_type"].(*string),
-			VolumeSize:   masterProperties["volume_size"].(*int32),
-			Image:        masterProperties["image"].(*string),
-			Zone:         masterProperties["zone"].(*string),
+			Count:        Int32(masterProperties["count"].(int)),
+			InstanceType: String(masterProperties["instance_type"].(string)),
+			VolumeType:   String(masterProperties["volume_type"].(string)),
+			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
+			Image:        String(masterProperties["image"].(string)),
+			Zone:         String(masterProperties["zone"].(string)),
 		},
 	}
 
-	segmentProperties := d.Get("segment").(map[string]interface{})
+	segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
+	var segmentProperties map[string]interface{}
+	for _, raw := range segmentPropertiesRaw {
+		segmentProperties = raw.(map[string]interface{})
+		break
+	}
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        segmentProperties["count"].(*int32),
-			InstanceType: segmentProperties["instance_type"].(*string),
-			VolumeType:   segmentProperties["volume_type"].(*string),
-			VolumeSize:   segmentProperties["volume_size"].(*int32),
-			Image:        segmentProperties["image"].(*string),
-			Zone:         segmentProperties["zone"].(*string),
+			Count:        Int32(segmentProperties["count"].(int)),
+			InstanceType: String(segmentProperties["instance_type"].(string)),
+			VolumeType:   String(segmentProperties["volume_type"].(string)),
+			VolumeSize:   Int32(segmentProperties["volume_size"].(int)),
+			Image:        String(segmentProperties["image"].(string)),
+			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
-	extraProperties := d.Get("extra").(map[string]interface{})
+	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
+	var extraProperties map[string]interface{}
+	for _, raw := range extraPropertiesRaw {
+		extraProperties = raw.(map[string]interface{})
+		break
+	}
 	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
-		Vpc:     extraProperties["vpc"].(*string),
-		Subnet:  extraProperties["subnet"].(*string),
-		Keypair: extraProperties["keypair"].(*string),
+		Vpc:     String(extraProperties["vpc"].(string)),
+		Subnet:  String(extraProperties["subnet"].(string)),
+		Keypair: String(extraProperties["keypair"].(string)),
 	}
 
-	name := d.Get("name").(string) //TODO 记得加这个参数
+	name := d.Get("name").(string)
 	body.Name = &name
 	body.Master = &master
 	body.Segment = &segment

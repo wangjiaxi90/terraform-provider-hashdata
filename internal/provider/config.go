@@ -12,5 +12,19 @@ type Config struct {
 }
 
 func (c *Config) Client() (interface{}, error) {
-	return cloudmgr.NewAPIClient(cloudmgr.NewConfiguration()), nil // TODO 九折九折？
+	cfg := cloudmgr.NewConfiguration()
+	cfg.Host = "host" //TODO
+	cfg.Scheme = "scheme"
+	return cloudmgr.NewAPIClient(cfg), nil
+}
+
+func Int32(v int) *int32 {
+	t := int32(v)
+	return &t
+}
+func String(v string) *string {
+	return &v
+}
+func Bool(v bool) *bool {
+	return &v
 }

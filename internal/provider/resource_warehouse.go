@@ -183,25 +183,13 @@ func resourceWarehouse() *schema.Resource {
 		},
 	}
 }
-func Int32(v int) *int32 {
-	t := int32(v)
-	return &t
-}
-func Int(v int32) *int32 {
-	return &v
-}
-func String(v string) *string {
-	return &v
-}
-func Bool(v bool) *bool {
-	return &v
-}
+
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 
-	configuration := cloudmgr.NewConfiguration() //TODO
+	configuration := cloudmgr.NewConfiguration() //TODO  客户端的生成
 	apiClient := cloudmgr.NewAPIClient(configuration)
-	masterPropertiesRaw := d.Get("master").(*schema.Set).List() //TODO  master.iaas 是不是这么调用
+	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
 	var masterProperties map[string]interface{}
 	for _, raw := range masterPropertiesRaw {
 		masterProperties = raw.(map[string]interface{})
@@ -210,7 +198,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int32(masterProperties["count"].(int)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			Count:        Int32(masterProperties["count"].(int)),
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
 			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
@@ -227,7 +215,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int32(segmentProperties["count"].(int)), //TODO 可以在这里统计参数 这块加 【*】  对不对？
+			Count:        Int32(segmentProperties["count"].(int)),
 			InstanceType: String(segmentProperties["instance_type"].(string)),
 			VolumeType:   String(segmentProperties["volume_type"].(string)),
 			VolumeSize:   Int32(segmentProperties["volume_size"].(int)),
@@ -269,7 +257,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		LocalStorage:  Bool(featureProperties["local_storage"].(bool)),
 		MirrorStandby: Bool(featureProperties["mirror_standby"].(bool)),
 	}
-	name := d.Get("name").(string) //TODO 记得加这个参数
+	name := d.Get("name").(string)
 	body.Name = &name
 	body.Master = &master
 	body.Segment = &segment
