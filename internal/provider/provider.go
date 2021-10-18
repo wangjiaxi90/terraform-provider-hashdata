@@ -26,6 +26,28 @@ func init() {
 func New(version string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
+			Schema: map[string]*schema.Schema{
+				"username": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: descriptions["username"],
+				},
+				"password": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: descriptions["password"],
+				},
+				"client_id": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: descriptions["client_id"],
+				},
+				"client_secret": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: descriptions["client_secret"],
+				},
+			},
 			DataSourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用data字段获取
 				"scaffolding_data_source": dataSourceEmpty(),
 			},
@@ -41,37 +63,63 @@ func New(version string) func() *schema.Provider {
 }
 
 func configure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	accesskey, ok := d.GetOk("access_key")
+
+	username, ok := d.GetOk("username")
 	if !ok {
-		accesskey = os.Getenv("HASHDATA_ACCESS_KEY")
-	}
-	secretkey, ok := d.GetOk("secret_key")
-	if !ok {
-		secretkey = os.Getenv("HASHDATA_SECRET_KEY")
-	}
-	zone, ok := d.GetOk("zone")
-	if !ok {
-		zone = os.Getenv("HASHDATA_ZONE")
-		if zone == "" {
-			zone = "DEFAULT_ZONE" //TODO 默认区
+		username = os.Getenv("HASHDATA_USERNAME")
+		if username == "" {
+			return nil, diag.Errorf("Don't have username variable in provider scope.")
 		}
 	}
-	endpoint, ok := d.GetOk("endpoint")
+	password, ok := d.GetOk("password")
 	if !ok {
-		endpoint = os.Getenv("HASHDATA_ENDPOINT")
-		if endpoint == "" {
-			endpoint = "DEFAULT_ENDPOINT" //TODO 默认endpoint
+		password = os.Getenv("HASHDATA_PASSWORD")
+		if password == "" {
+			return nil, diag.Errorf("Don't have password variable in provider scope.")
+		}
+	}
+	client_id, ok := d.GetOk("client_id")
+	if !ok {
+		client_id = os.Getenv("HASHDATA_CLIENT_ID")
+		if client_id == "" {
+			return nil, diag.Errorf("Don't have client_id variable in provider scope.")
+		}
+	}
+	client_secret, ok := d.GetOk("client_secret")
+	if !ok {
+		client_secret = os.Getenv("HASHDATA_CLIENT_SECRET")
+		if client_secret == "" {
+			return nil, diag.Errorf("Don't have client_secret variable in provider scope.")
+		}
+	}
+	end_point, ok := d.GetOk("end_point")
+	if !ok {
+		end_point = os.Getenv("HASHDATA_END_POINT")
+		if end_point == "" {
+			end_point = DEFAULT_ENDPOINT
 		}
 	}
 	config := Config{
-		AccessKey: accesskey.(string),
-		SecretKey: secretkey.(string),
-		Zone:      accesskey.(string),
-		EndPoint:  endpoint.(string),
+		Username:     username.(string),
+		Password:     password.(string),
+		ClientId:     client_id.(string),
+		ClientSecret: client_secret.(string),
+		EndPoint:     end_point.(string),
 	}
 	client, err := config.Client() // TODO 校验参数啥的
 	if err != nil {
 		return nil, diag.Errorf(err.Error())
 	}
 	return client, nil
+}
+
+var descriptions map[string]string
+
+func init() {
+	descriptions = map[string]string{
+		"username":      "hashdata username ",
+		"password":      "hashdata password",
+		"client_id":     "hashdata client_id",
+		"client_secret": "hashdata client_secret",
+	}
 }

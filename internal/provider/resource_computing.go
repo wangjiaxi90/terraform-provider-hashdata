@@ -21,7 +21,7 @@ func resourceComputing() *schema.Resource {
 		DeleteContext: resourceComputingDelete,
 
 		Schema: map[string]*schema.Schema{
-			"sample_attribute": {
+			"sample_attribute": {//TODO 修改input
 				// This description is used by the documentation generator and the language server.
 				Description: "Sample attribute.",
 				Type:        schema.TypeString,

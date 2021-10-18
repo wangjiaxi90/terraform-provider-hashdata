@@ -190,15 +190,11 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	configuration := cloudmgr.NewConfiguration() //TODO  客户端的生成
 	apiClient := cloudmgr.NewAPIClient(configuration)
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
-	var masterProperties map[string]interface{}
-	for _, raw := range masterPropertiesRaw {
-		masterProperties = raw.(map[string]interface{})
-		break
-	}
-
+	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
+	var masterCount int32 = 1
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int32(masterProperties["count"].(int)),
+			Count:        &masterCount,
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
 			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
@@ -208,11 +204,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
-	var segmentProperties map[string]interface{}
-	for _, raw := range segmentPropertiesRaw {
-		segmentProperties = raw.(map[string]interface{})
-		break
-	}
+	var segmentProperties = segmentPropertiesRaw[0].(map[string]interface{})
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
 			Count:        Int32(segmentProperties["count"].(int)),
@@ -224,11 +216,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		},
 	}
 	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
-	var extraProperties map[string]interface{}
-	for _, raw := range extraPropertiesRaw {
-		extraProperties = raw.(map[string]interface{})
-		break
-	}
+	var extraProperties = extraPropertiesRaw[0].(map[string]interface{})
 	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
 		Vpc:     String(extraProperties["vpc"].(string)),
 		Subnet:  String(extraProperties["subnet"].(string)),
@@ -236,11 +224,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	metadataPropertiesRaw := d.Get("metadata").(*schema.Set).List()
-	var metadataProperties map[string]interface{}
-	for _, raw := range metadataPropertiesRaw {
-		metadataProperties = raw.(map[string]interface{})
-		break
-	}
+	var metadataProperties = metadataPropertiesRaw[0].(map[string]interface{})
 	var metadata = make(map[string]interface{})
 	metadata["default_database"] = metadataProperties["default_database"].(string)
 	metadata["default_user"] = metadataProperties["default_user"].(string)
@@ -248,11 +232,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	metadata["logic_part"] = metadataProperties["logic_part"].(int)
 
 	featurePropertiesRaw := d.Get("feature").(*schema.Set).List()
-	var featureProperties map[string]interface{}
-	for _, raw := range featurePropertiesRaw {
-		featureProperties = raw.(map[string]interface{})
-		break
-	}
+	var featureProperties = featurePropertiesRaw[0].(map[string]interface{})
 	feature := cloudmgr.CoreCreateServiceFeatureRequest{
 		LocalStorage:  Bool(featureProperties["local_storage"].(bool)),
 		MirrorStandby: Bool(featureProperties["mirror_standby"].(bool)),
