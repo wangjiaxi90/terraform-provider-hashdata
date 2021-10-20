@@ -20,7 +20,7 @@ func (c *Config) Client() (interface{}, error) {
 		ClientID:     c.ClientId,
 		ClientSecret: c.ClientSecret,
 		Endpoint: oauth2.Endpoint{
-			TokenURL: c.EndPoint,
+			TokenURL: c.EndPoint + TOKEN_PATH,
 		},
 	}
 	token, err := configOauth2.PasswordCredentialsToken(context.Background(), c.Username, c.Password)
