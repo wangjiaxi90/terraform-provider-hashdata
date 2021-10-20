@@ -139,7 +139,7 @@ func resourceComputing() *schema.Resource {
 
 func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
-	apiClient :=  meta.(cloudmgr.APIClient)
+	apiClient :=  meta.(*cloudmgr.APIClient)
 
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
 

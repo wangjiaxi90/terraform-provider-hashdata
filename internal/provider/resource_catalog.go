@@ -220,7 +220,7 @@ func resourceCatalog() *schema.Resource {
 
 func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateCatalogRequest()
-	apiClient :=  meta.(cloudmgr.APIClient)
+	apiClient :=  meta.(*cloudmgr.APIClient)
 
 	etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
 	var etcdProperties = etcdPropertiesRaw[0].(map[string]interface{})
