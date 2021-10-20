@@ -47,6 +47,11 @@ func New(version string) func() *schema.Provider {
 					Optional:    true,
 					Description: descriptions["client_secret"],
 				},
+				"end_point": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: descriptions["end_point"],
+				},
 			},
 			DataSourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用data字段获取
 				"scaffolding_data_source": dataSourceEmpty(),

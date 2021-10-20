@@ -26,8 +26,7 @@ func resourceComputing() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
-			"catalog": {//TODO 修改input
-				// This description is used by the documentation generator and the language server.
+			"catalog": {
 				Description: "catalog UUID.",
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -139,12 +138,8 @@ func resourceComputing() *schema.Resource {
 }
 
 func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
-
-	configuration := cloudmgr.NewConfiguration() //TODO 客户端的生成
-	apiClient := cloudmgr.NewAPIClient(configuration)
+	apiClient :=  meta.(cloudmgr.APIClient)
 
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
 

@@ -180,16 +180,13 @@ func resourceWarehouse() *schema.Resource {
 					},
 				},
 			},
-
 		},
 	}
 }
 
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
-
-	configuration := cloudmgr.NewConfiguration() //TODO  客户端的生成
-	apiClient := cloudmgr.NewAPIClient(configuration)
+	apiClient := meta.(cloudmgr.APIClient)
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
 	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
 	var masterCount int32 = 1
