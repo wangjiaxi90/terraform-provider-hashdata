@@ -20,6 +20,11 @@ func resourceWarehouse() *schema.Resource {
 		DeleteContext: resourceWarehouseDelete,
 
 		Schema: map[string]*schema.Schema{
+			"name": {
+				Description: "name.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
 			"master": {
 				Description: "master.",
 				Type:        schema.TypeSet,
@@ -175,11 +180,7 @@ func resourceWarehouse() *schema.Resource {
 					},
 				},
 			},
-			"name": {
-				Description: "name.",
-				Type:        schema.TypeString,
-				Optional:    true,
-			},
+
 		},
 	}
 }

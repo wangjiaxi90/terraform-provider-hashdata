@@ -21,11 +21,118 @@ func resourceComputing() *schema.Resource {
 		DeleteContext: resourceComputingDelete,
 
 		Schema: map[string]*schema.Schema{
-			"sample_attribute": {//TODO 修改input
-				// This description is used by the documentation generator and the language server.
-				Description: "Sample attribute.",
+			"name": {
+				Description: "name.",
 				Type:        schema.TypeString,
 				Optional:    true,
+			},
+			"catalog": {//TODO 修改input
+				// This description is used by the documentation generator and the language server.
+				Description: "catalog UUID.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
+			"master": {
+				Description: "master.",
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"count": {
+							Description: "master count.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"instance_type": {
+							Description: "master instance_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_type": {
+							Description: "master volume_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_size": {
+							Description: "master volume_size.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"image": {
+							Description: "master image.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"zone": {
+							Description: "master zone.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"segment": {
+				Description: "segment.",
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"count": {
+							Description: "segment count.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"instance_type": {
+							Description: "segment instance_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_type": {
+							Description: "segment volume_type.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"volume_size": {
+							Description: "segment volume_size.",
+							Type:        schema.TypeInt,
+							Optional:    true,
+						},
+						"image": {
+							Description: "segment image.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"zone": {
+							Description: "segment zone.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
+			},
+			"extra": {
+				Description: "extra.",
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"vpc": {
+							Description: "vpc.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"subnet": {
+							Description: "subnet.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+						"keypair": {
+							Description: "keypair.",
+							Type:        schema.TypeString,
+							Optional:    true,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -42,15 +149,12 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
 
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
-	var masterProperties map[string]interface{}
-	for _, raw := range masterPropertiesRaw {
-		masterProperties = raw.(map[string]interface{})
-		break
-	}
+	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
+	var masterCount int32 = 1
 
 	master := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-			Count:        Int32(masterProperties["count"].(int)),
+			Count:        &masterCount,
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
 			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
@@ -60,11 +164,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
-	var segmentProperties map[string]interface{}
-	for _, raw := range segmentPropertiesRaw {
-		segmentProperties = raw.(map[string]interface{})
-		break
-	}
+	var segmentProperties = segmentPropertiesRaw[0].(map[string]interface{})
 	segment := cloudmgr.CoreCreateServiceComponentRequest{
 		Iaas: &cloudmgr.CloudmgrcoreIaasResource{
 			Count:        Int32(segmentProperties["count"].(int)),
@@ -75,12 +175,10 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
+
+
 	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
-	var extraProperties map[string]interface{}
-	for _, raw := range extraPropertiesRaw {
-		extraProperties = raw.(map[string]interface{})
-		break
-	}
+	var extraProperties = extraPropertiesRaw[0].(map[string]interface{})
 	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
 		Vpc:     String(extraProperties["vpc"].(string)),
 		Subnet:  String(extraProperties["subnet"].(string)),
