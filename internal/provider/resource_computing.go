@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/wangjiaxi90/terraform-provider-scaffolding/internal/provider/cloudmgr"
+	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
