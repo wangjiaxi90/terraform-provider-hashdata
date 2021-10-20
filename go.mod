@@ -1,4 +1,4 @@
-module github.com/wangjiaxi90/terraform-provider-scaffolding
+module github.com/wangjiaxi90/terraform-provider-hashdata
 
 go 1.15
 
