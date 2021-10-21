@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
-	_nethttp "net/http"
 	"os"
 	"time"
 )
@@ -269,24 +268,15 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		body.Standby = &standby
 	}
 	var resp cloudmgr.CommonDescribeJobResponse
-	var r *_nethttp.Response
 	var err error
 	simpleRetry(func() error {
-		resp, r, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
+		resp, _, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 		return isServerBusy(err)
 	})
 	//resp, r, err := apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
-		if err != nil {
-			return nil
-		}
-		_, err = fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-		if err != nil {
-			return nil
-		}
+		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
 	}
-	fmt.Fprintf(os.Stdout, "Http status:  %s\n", r.Status)
 	d.SetId(resp.GetId())
 	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0]) //TODO
 	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
