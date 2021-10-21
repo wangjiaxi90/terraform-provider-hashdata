@@ -30,7 +30,7 @@ func (c *Config) Client() (interface{}, error) {
 
 	cfg.Host = c.EndPoint
 	var header = make(map[string]string)
-	header["Authorization"] = AUTH_PREFIX + token.AccessToken
+	header[DEFAULT_HEADER_KEY] = AUTH_PREFIX + token.AccessToken
 	cfg.DefaultHeader = header
 	cfg.Servers = cloudmgr.ServerConfigurations{
 		{
