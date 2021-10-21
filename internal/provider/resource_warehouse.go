@@ -303,10 +303,10 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 	refreshFunc := func() (interface{}, string, error) {
 		//CoreDescribeInstanceResponse, *_nethttp.Response, error
 		var resp cloudmgr.CommonDescribeJobResponse
-		var r *_nethttp.Response
+		//var r *_nethttp.Response
 		var err error
 		simpleRetry(func() error {
-			resp, r, err = clt.DescribeJob(ctx, id).Execute()
+			resp, _, err = clt.DescribeJob(ctx, id).Execute()
 			return isServerBusy(err)
 		})
 		if err != nil {
