@@ -343,10 +343,10 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	apiClient := meta.(*cloudmgr.APIClient)
 	var resp cloudmgr.CoreDescribeInstanceResponse
-	var r *_nethttp.Response
+	//var r *_nethttp.Response
 	var err error
 	simpleRetry(func() error {
-		resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
+		resp, _, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
 		return isServerBusy(err)
 	})
 	if err != nil {
