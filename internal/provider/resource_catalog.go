@@ -221,7 +221,6 @@ func resourceCatalog() *schema.Resource {
 func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateCatalogRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
-	d.SetId(apiClient.GetConfig().DefaultHeader[DEFAULT_HEADER_KEY])
 	etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
 	var etcdProperties = etcdPropertiesRaw[0].(map[string]interface{})
 	etcd := cloudmgr.CoreCreateServiceComponentRequest{
@@ -297,6 +296,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	d.SetId(*(resp.Id))
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
 	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
 

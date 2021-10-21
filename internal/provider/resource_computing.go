@@ -140,7 +140,6 @@ func resourceComputing() *schema.Resource {
 func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 	apiClient := meta.(*cloudmgr.APIClient)
-	d.SetId(apiClient.GetConfig().DefaultHeader[DEFAULT_HEADER_KEY])
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
 
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
@@ -192,6 +191,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
+	d.SetId(*(resp.Id))
 	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
 
 	//return diag.Errorf("not implemented")

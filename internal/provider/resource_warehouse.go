@@ -187,7 +187,6 @@ func resourceWarehouse() *schema.Resource {
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 	apiClient := meta.(*cloudmgr.APIClient)
-	d.SetId(apiClient.GetConfig().DefaultHeader[DEFAULT_HEADER_KEY])
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
 	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
 	var masterCount int32 = 1
@@ -272,6 +271,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	d.SetId(*(resp.Id))
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
 	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
 
