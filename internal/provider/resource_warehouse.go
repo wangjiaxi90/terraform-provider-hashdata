@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
+	_nethttp "net/http"
 	"os"
+	"time"
 )
 
 func resourceWarehouse() *schema.Resource {
@@ -265,33 +268,181 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 		body.Standby = &standby
 	}
-
-	resp, r, err := apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
+	var resp cloudmgr.CommonDescribeJobResponse
+	var r *_nethttp.Response
+	var err error
+	simpleRetry(func() error {
+		resp, r, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
+		return isServerBusy(err)
+	})
+	//resp, r, err := apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		_, err := fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
+		if err != nil {
+			return nil
+		}
+		_, err = fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		if err != nil {
+			return nil
+		}
 	}
-	d.SetId(*(resp.Id))
-	// response from `CreateWarehouse`: CommonDescribeJobResponse
+	fmt.Fprintf(os.Stdout, "Http status:  %s\n", r.Status)
+	d.SetId(resp.GetId())
+	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0]) //TODO
 	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
+	if _, err := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); err != nil {
+		return diag.Errorf(err.Error())
+	}
+	return resourceWarehouseUpdate(ctx, d, meta)
+}
 
-	return nil
+func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobServiceApiService, id string) (interface{}, error) {
+	if id == "" {
+		return nil, nil
+	}
+	refreshFunc := func() (interface{}, string, error) {
+		//CoreDescribeInstanceResponse, *_nethttp.Response, error
+		var resp cloudmgr.CommonDescribeJobResponse
+		var r *_nethttp.Response
+		var err error
+		simpleRetry(func() error {
+			resp, r, err = clt.DescribeJob(ctx, id).Execute()
+			return isServerBusy(err)
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		//TODO 判断是否被删除
+		status := resp.GetStatus()
+		if status == JOB_WAIT_PENDING || status == JOB_WAIT_RUNNING {
+			return nil, status, nil
+		} else if status == JOB_FAILED_ABANDONED || status == JOB_FAILED_FAILURE {
+			return nil, status, fmt.Errorf("Error instance create failed, request id %s, status %s ", id, status)
+		} else {
+			//success
+			return nil, status, nil
+		}
+
+	}
+	stateConf := &resource.StateChangeConf{
+		Pending:    []string{JOB_WAIT_PENDING, JOB_WAIT_RUNNING},
+		Target:     []string{JOB_SUCCESS},
+		Refresh:    refreshFunc,
+		Timeout:    waitJobTimeOutDefault * time.Second,
+		Delay:      waitJobIntervalDefault * time.Second,
+		MinTimeout: waitJobIntervalDefault * time.Second,
+	}
+	return stateConf.WaitForStateContext(ctx)
 }
 
 func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
+	id, ok := d.GetOk(WAREHOUSE_ID)
+	if !ok {
+		return diag.Errorf("Can not read warehouse,because id is empty")
+	}
 
-	//return diag.Errorf("not implemented")
+	apiClient := meta.(*cloudmgr.APIClient)
+	var resp cloudmgr.CoreDescribeInstanceResponse
+	var r *_nethttp.Response
+	var err error
+	simpleRetry(func() error {
+		resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
+		return isServerBusy(err)
+	})
+	if err != nil {
+		return nil
+	}
+	if param, ok := resp.GetArchOk(); !ok {
+		d.Set("arch", param)
+	}
+	if param, ok := resp.GetComponentsOk(); !ok {
+		d.Set("components", param)
+	}
+	if param, ok := resp.GetCreatedAtOk(); !ok {
+		d.Set("created_at", param)
+	}
+	if param, ok := resp.GetDestroyedAtOk(); !ok {
+		d.Set("destroyed_at", param)
+	}
+	if nic, ok := resp.GetElasticNicOk(); !ok {
+		var nic_map = make(map[string]interface{})
+		if param, ok2 := nic.GetElasticNicIdOk(); !ok2 {
+			nic_map["elastic_nic_id"] = param
+		}
+		if param, ok2 := nic.GetIpaddressesOk(); !ok2 {
+			nic_map["ipaddresses"] = param
+		}
+		d.Set("nic", nic_map)
+	}
+	if param, ok := resp.GetHealthStatusOk(); !ok {
+		d.Set("health_status", param)
+	}
+	if param, ok := resp.GetHostnameOk(); !ok {
+		d.Set("hostname", param)
+	}
+	if param, ok := resp.GetIdOk(); !ok {
+		d.Set("id", param)
+	}
+	if param, ok := resp.GetImageOk(); !ok {
+		d.Set("image", param)
+	}
+	if internet, ok := resp.GetInternetOk(); !ok {
+		var internet_map = make(map[string]interface{})
+		if param, ok2 := internet.GetBandwidthOk(); !ok2 {
+			internet_map["band_width"] = param
+		}
+		if param, ok2 := internet.GetElasticIpOk(); !ok2 {
+			internet_map["elastic_ip"] = param
+		}
+		if param, ok2 := internet.GetElasticIpIdOk(); !ok2 {
+			internet_map["elastic_ip_id"] = param
+		}
+		if param, ok2 := internet.GetPublicIpOk(); !ok2 {
+			internet_map["public_ip"] = param
+		}
+		d.Set("internet", internet_map)
+	}
+	if param, ok := resp.GetIpaddressesOk(); !ok {
+		d.Set("ipaddresses", param)
+	}
+	if param, ok := resp.GetMessageOk(); !ok {
+		d.Set("message", param)
+	}
+	if param, ok := resp.GetNameOk(); !ok {
+		d.Set("name", param)
+	}
+	if param, ok := resp.GetResourcePoolOk(); !ok {
+		d.Set("resource_pool", param)
+	}
+	if param, ok := resp.GetScaleTypeOk(); !ok {
+		d.Set("scale_type", param)
+	}
+	if param, ok := resp.GetServiceOk(); !ok {
+		d.Set("service", param)
+	}
+	if param, ok := resp.GetStatusOk(); !ok {
+		d.Set("status", param)
+	}
+	if param, ok := resp.GetTenantOk(); !ok {
+		d.Set("tenant", param)
+	}
+	if param, ok := resp.GetTypeOk(); !ok {
+		d.Set("type", param)
+	}
+	if param, ok := resp.GetVendorOk(); !ok {
+		d.Set("vendor", param)
+	}
+	if param, ok := resp.GetZoneOk(); !ok {
+		d.Set("zone", param)
+	}
+
+	//TODO 判断是否被删除
 	return nil
 }
 
 func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
-	return nil
+	//TODO not support update
+	return resourceWarehouseRead(ctx, d, meta)
 }
 
 func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
