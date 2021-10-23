@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	"golang.org/x/oauth2"
+	"net/url"
 )
 
 type Config struct {
@@ -27,14 +28,17 @@ func (c *Config) Client() (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	cfg.Host = c.EndPoint
+	u, err := url.Parse(c.EndPoint)
+	if err != nil {
+		panic(err)
+	}
+	cfg.Scheme = u.Scheme
 	var header = make(map[string]string)
 	header[DEFAULT_HEADER_KEY] = AUTH_PREFIX + token.AccessToken
 	cfg.DefaultHeader = header
 	cfg.Servers = cloudmgr.ServerConfigurations{
 		{
-			URL:         c.EndPoint,
+			URL:         u.Host,
 			Description: "Default server",
 		},
 	}

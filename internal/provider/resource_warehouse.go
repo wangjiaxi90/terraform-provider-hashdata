@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
-	"os"
+	_nethttp "net/http"
 	"time"
 )
 
@@ -268,18 +268,19 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		body.Standby = &standby
 	}
 	var resp cloudmgr.CommonDescribeJobResponse
+	var r *_nethttp.Response
 	var err error
-	simpleRetry(func() error {
-		resp, _, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
-		return isServerBusy(err)
-	})
-	//resp, r, err := apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
+	//Do Not retry here
+	resp, r, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
 	}
-	d.SetId(resp.GetId())
-	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0]) //TODO
-	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
+	if r.StatusCode != 200 {
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %s\n", r.Status)
+	}
+
+	d.SetId(resp.GetId())//TODO这里应该判断一下
+	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0])
 	if _, err := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); err != nil {
 		return diag.Errorf(err.Error())
 	}
@@ -291,16 +292,15 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 		return nil, nil
 	}
 	refreshFunc := func() (interface{}, string, error) {
-		//CoreDescribeInstanceResponse, *_nethttp.Response, error
 		var resp cloudmgr.CommonDescribeJobResponse
-		//var r *_nethttp.Response
+		var r *_nethttp.Response
 		var err error
-		simpleRetry(func() error {
-			resp, _, err = clt.DescribeJob(ctx, id).Execute()
-			return isServerBusy(err)
-		})
+		resp, r, err = clt.DescribeJob(ctx, id).Execute()
 		if err != nil {
 			return nil, "", err
+		}
+		if r.StatusCode != 200 {
+			return nil, "", fmt.Errorf("Bad response code with %s ", r.Status)
 		}
 		//TODO 判断是否被删除
 		status := resp.GetStatus()
@@ -308,9 +308,10 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 			return nil, status, nil
 		} else if status == JOB_FAILED_ABANDONED || status == JOB_FAILED_FAILURE {
 			return nil, status, fmt.Errorf("Error instance create failed, request id %s, status %s ", id, status)
-		} else {
-			//success
+		} else if status == JOB_SUCCESS {
 			return nil, status, nil
+		} else {
+			return nil, status, fmt.Errorf("Error unknow status code %s ", status)
 		}
 
 	}
