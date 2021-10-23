@@ -2,13 +2,10 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	_nethttp "net/http"
-	"time"
 )
 
 func resourceWarehouse() *schema.Resource {
@@ -279,51 +276,12 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %s\n", r.Status)
 	}
 
-	d.SetId(resp.GetId())//TODO这里应该判断一下
+	d.SetId(resp.GetId()) //TODO这里应该判断一下
 	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0])
-	if _, err := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); err != nil {
-		return diag.Errorf(err.Error())
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
 	}
 	return resourceWarehouseUpdate(ctx, d, meta)
-}
-
-func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobServiceApiService, id string) (interface{}, error) {
-	if id == "" {
-		return nil, nil
-	}
-	refreshFunc := func() (interface{}, string, error) {
-		var resp cloudmgr.CommonDescribeJobResponse
-		var r *_nethttp.Response
-		var err error
-		resp, r, err = clt.DescribeJob(ctx, id).Execute()
-		if err != nil {
-			return nil, "", err
-		}
-		if r.StatusCode != 200 {
-			return nil, "", fmt.Errorf("Bad response code with %s ", r.Status)
-		}
-		//TODO 判断是否被删除
-		status := resp.GetStatus()
-		if status == JOB_WAIT_PENDING || status == JOB_WAIT_RUNNING {
-			return nil, status, nil
-		} else if status == JOB_FAILED_ABANDONED || status == JOB_FAILED_FAILURE {
-			return nil, status, fmt.Errorf("Error instance create failed, request id %s, status %s ", id, status)
-		} else if status == JOB_SUCCESS {
-			return nil, status, nil
-		} else {
-			return nil, status, fmt.Errorf("Error unknow status code %s ", status)
-		}
-
-	}
-	stateConf := &resource.StateChangeConf{
-		Pending:    []string{JOB_WAIT_PENDING, JOB_WAIT_RUNNING},
-		Target:     []string{JOB_SUCCESS},
-		Refresh:    refreshFunc,
-		Timeout:    waitJobTimeOutDefault * time.Second,
-		Delay:      waitJobIntervalDefault * time.Second,
-		MinTimeout: waitJobIntervalDefault * time.Second,
-	}
-	return stateConf.WaitForStateContext(ctx)
 }
 
 func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

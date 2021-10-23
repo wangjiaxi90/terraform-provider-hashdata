@@ -1,7 +1,13 @@
 package provider
 
 import (
+	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	"math/rand"
+	_nethttp "net/http"
+	"strings"
 	"time"
 )
 
@@ -49,4 +55,43 @@ func isServerBusy(err error) error {
 		return stop{err}
 	}
 	return nil
+}
+
+func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobServiceApiService, id string) (interface{}, error) {
+	if id == "" {
+		return nil, nil
+	}
+	refreshFunc := func() (interface{}, string, error) {
+		var resp cloudmgr.CommonDescribeJobResponse
+		var r *_nethttp.Response
+		var err error
+		resp, r, err = clt.DescribeJob(ctx, id).Execute()
+		if err != nil {
+			return nil, "", err
+		}
+		if r.StatusCode != 200 {
+			return nil, "", fmt.Errorf("Bad response code with %s ", r.Status)
+		}
+		//TODO 判断是否被删除
+		status := strings.ToLower(resp.GetStatus())
+		if status == JOB_WAIT_PENDING || status == JOB_WAIT_RUNNING {
+			return nil, status, nil
+		} else if status == JOB_FAILED_ABANDONED || status == JOB_FAILED_FAILURE {
+			return nil, status, fmt.Errorf("Error instance create failed, request id %s, status %s ", id, status)
+		} else if status == JOB_SUCCESS {
+			return nil, status, nil
+		} else {
+			return nil, status, fmt.Errorf("Error unknow status code %s ", status)
+		}
+
+	}
+	stateConf := &resource.StateChangeConf{
+		Pending:    []string{JOB_WAIT_PENDING, JOB_WAIT_RUNNING},
+		Target:     []string{JOB_SUCCESS},
+		Refresh:    refreshFunc,
+		Timeout:    waitJobTimeOutDefault * time.Second,
+		Delay:      waitJobIntervalDefault * time.Second,
+		MinTimeout: waitJobIntervalDefault * time.Second,
+	}
+	return stateConf.WaitForStateContext(ctx)
 }
