@@ -7,7 +7,7 @@ const (
 	DEFAULT_HEADER_KEY     = "Authorization"
 	MAX_RETRY_TIMES        = 2000
 	waitJobTimeOutDefault  = 6000
-	waitJobIntervalDefault = 5
+	waitJobIntervalDefault = 10
 	JOB_SUCCESS            = "success"
 	JOB_WAIT_PENDING       = "pending"
 	JOB_WAIT_RUNNING       = "running"
