@@ -292,14 +292,16 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	apiClient := meta.(*cloudmgr.APIClient)
 	var resp cloudmgr.CoreDescribeInstanceResponse
-	//var r *_nethttp.Response
+	var r *_nethttp.Response
 	var err error
-	simpleRetry(func() error {
-		resp, _, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
-		return isServerBusy(err)
-	})
+
+	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
+
 	if err != nil {
 		return nil
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %\n", r.StatusCode)
 	}
 	if param, ok := resp.GetArchOk(); !ok {
 		d.Set("arch", param)
@@ -395,15 +397,21 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 }
 
 func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
-
-	//configuration := cloudmgr.NewConfiguration()//TODO
-	//apiClient := cloudmgr.NewAPIClient(configuration)
-	//apiClient.CloudmgrServiceManager
-	//
-	//cloudmgr.Service
+	apiClient := meta.(*cloudmgr.APIClient)
+	resourceId, ok := d.GetOk(WAREHOUSE_ID)
+	if !ok {
+		return diag.Errorf(WAREHOUSE_ID + " not found! ")
+	}
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	if err != nil {
+		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
+	}
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
+	d.SetId("")
 	return nil
 }

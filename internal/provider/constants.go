@@ -5,7 +5,7 @@ const (
 	AUTH_PREFIX            = "Bearer "
 	TOKEN_PATH             = "/account/oauth/token"
 	DEFAULT_HEADER_KEY     = "Authorization"
-	MAX_RETRY_TIMES        = 20
+	MAX_RETRY_TIMES        = 2000
 	waitJobTimeOutDefault  = 240
 	waitJobIntervalDefault = 5
 	JOB_SUCCESS            = "success"
