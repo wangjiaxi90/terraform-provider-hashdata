@@ -92,6 +92,7 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 		Timeout:    waitJobTimeOutDefault * time.Second,
 		Delay:      waitJobIntervalDefault * time.Second,
 		MinTimeout: waitJobIntervalDefault * time.Second,
+		NotFoundChecks: 600,
 	}
 	return stateConf.WaitForStateContext(ctx)
 }
