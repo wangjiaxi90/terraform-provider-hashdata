@@ -301,7 +301,7 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 		return nil
 	}
 	if r.StatusCode != 200 {
-		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %\n", r.StatusCode)
+		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
 	}
 	if param, ok := resp.GetArchOk(); !ok {
 		d.Set("arch", param)
