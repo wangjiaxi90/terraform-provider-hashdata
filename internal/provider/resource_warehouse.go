@@ -184,6 +184,7 @@ func resourceWarehouse() *schema.Resource {
 }
 
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	ctx = context.Background()
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 	apiClient := meta.(*cloudmgr.APIClient)
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
