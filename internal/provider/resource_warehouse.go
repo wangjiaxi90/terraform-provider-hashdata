@@ -282,7 +282,8 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
-	return resourceWarehouseUpdate(ctx, d, meta)
+	return nil
+	//return resourceWarehouseUpdate(ctx, d, meta)
 }
 
 func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

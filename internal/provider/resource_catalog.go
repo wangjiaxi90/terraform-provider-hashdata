@@ -2,11 +2,9 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
-	"os"
 )
 
 func resourceCatalog() *schema.Resource {
@@ -219,6 +217,7 @@ func resourceCatalog() *schema.Resource {
 }
 
 func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	ctx = context.Background()
 	body := *cloudmgr.NewCoreCreateCatalogRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
 	etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
@@ -282,7 +281,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	metadata["default_password"] = metadataProperties["default_password"].(string)
 	metadata["logic_part"] = metadataProperties["logic_part"].(int)
 
-	name := d.Get("name").(string) //TODO 参数校验
+	name := d.Get("name").(string)
 	body.Name = &name
 	body.Etcd = &etcd
 	body.Catalog = &catalog
@@ -293,36 +292,47 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 
 	resp, r, err := apiClient.CoreWarehouseServiceApi.CreateCatalog(ctx).Body(body).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateCatalog``: %v\n", err)
 	}
-	d.SetId(*(resp.Id))
-	// response from `CreateWarehouse`: CommonDescribeJobResponse
-	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
+	if r.StatusCode != 200 {
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateCatalog``: %s\n", r.Status)
+	}
+	d.SetId(resp.GetId())
+	d.Set(CATALOG_ID, resp.GetResourceIds()[0])
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
+
+
 
 	return nil
+	//return resourceCatalogUpdate(ctx, d, meta)
 }
 
 func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
 	return nil
 }
 
 func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
-	return nil
+	return resourceCatalogRead(ctx, d, meta)
 }
 
 func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
+	apiClient := meta.(*cloudmgr.APIClient)
+	resourceId, ok := d.GetOk(CATALOG_ID)
+	if !ok {
+		return diag.Errorf(WAREHOUSE_ID + " not found! ")
+	}
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	if err != nil {
+		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
+	}
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
+	d.SetId("")
 	return nil
 }

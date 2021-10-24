@@ -79,7 +79,7 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 		} else if status == JOB_FAILED_ABANDONED || status == JOB_FAILED_FAILURE {
 			return nil, status, fmt.Errorf("Error instance create failed, request id %s, status %s ", id, status)
 		} else if status == JOB_SUCCESS {
-			return nil, status, nil
+			return nil, "", nil
 		} else {
 			return nil, status, fmt.Errorf("Error unknow status code %s ", status)
 		}
@@ -87,7 +87,7 @@ func InstanceTransitionStateRefresh(ctx context.Context, clt *cloudmgr.CoreJobSe
 	}
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{JOB_WAIT_PENDING, JOB_WAIT_RUNNING},
-		Target:     []string{JOB_SUCCESS},
+		Target:     []string{""},
 		Refresh:    refreshFunc,
 		Timeout:    waitJobTimeOutDefault * time.Second,
 		Delay:      waitJobIntervalDefault * time.Second,

@@ -2,12 +2,10 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
-	"os"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
+	_nethttp "net/http"
 )
 
 func resourceComputing() *schema.Resource {
@@ -138,6 +136,7 @@ func resourceComputing() *schema.Resource {
 }
 
 func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	ctx = context.Background()
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 	apiClient := meta.(*cloudmgr.APIClient)
 	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
@@ -184,40 +183,49 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	body.Segment = &segment
 	body.Catalog = &catalog
 	body.Extras = &extra
-
-	resp, r, err := apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
+	var resp cloudmgr.CommonDescribeJobResponse
+	var r *_nethttp.Response
+	var err error
+	resp, r, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing``: %v\n", err)
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing``: %s\n", r.Status)
 	}
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
-	d.SetId(*(resp.Id))
-	fmt.Fprintf(os.Stdout, "Response from `CoreWarehouseServiceApi.CreateWarehouse`: %v\n", resp)
-
-	//return diag.Errorf("not implemented")
+	d.SetId(resp.GetId())
+	d.Set(COMPUTING_ID, resp.GetResourceIds()[0])
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
 	return nil
 }
 
 func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
 	return nil
 }
 
 func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
 	return nil
 }
 
 func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
-
-	//return diag.Errorf("not implemented")
+	apiClient := meta.(*cloudmgr.APIClient)
+	resourceId, ok := d.GetOk(COMPUTING_ID)
+	if !ok {
+		return diag.Errorf(WAREHOUSE_ID + " not found! ")
+	}
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	if err != nil {
+		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
+	}
+	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
+	d.SetId("")
 	return nil
 }
