@@ -279,7 +279,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	d.SetId(resp.GetId()) //TODO这里应该判断一下
 	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0])
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 	return nil
@@ -411,7 +411,7 @@ func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta i
 	if r.StatusCode != 200 {
 		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
 	}
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 	d.SetId("")

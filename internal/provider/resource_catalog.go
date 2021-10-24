@@ -299,7 +299,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 	d.SetId(resp.GetId())
 	d.Set(CATALOG_ID, resp.GetResourceIds()[0])
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 
@@ -330,7 +330,7 @@ func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta int
 	if r.StatusCode != 200 {
 		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
 	}
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 	d.SetId("")

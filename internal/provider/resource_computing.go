@@ -196,7 +196,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
 	d.SetId(resp.GetId())
 	d.Set(COMPUTING_ID, resp.GetResourceIds()[0])
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 	return nil
@@ -223,7 +223,7 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 	if r.StatusCode != 200 {
 		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
 	}
-	if _, errRefresh := InstanceTransitionStateRefresh(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
 	d.SetId("")
