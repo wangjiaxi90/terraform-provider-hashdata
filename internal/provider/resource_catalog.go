@@ -217,7 +217,6 @@ func resourceCatalog() *schema.Resource {
 }
 
 func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	ctx = context.Background()
 	body := *cloudmgr.NewCoreCreateCatalogRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
 	etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
@@ -297,13 +296,10 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateCatalog``: %s\n", r.Status)
 	}
-	d.SetId(resp.GetId())
-	d.Set(CATALOG_ID, resp.GetResourceIds()[0])
+	d.SetId(resp.GetResourceIds()[0])
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
-
-
 
 	return nil
 	//return resourceCatalogUpdate(ctx, d, meta)
@@ -319,11 +315,11 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 
 func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	apiClient := meta.(*cloudmgr.APIClient)
-	resourceId, ok := d.GetOk(CATALOG_ID)
-	if !ok {
-		return diag.Errorf(WAREHOUSE_ID + " not found! ")
+	resourceId := d.Id()
+	if resourceId == "" {
+		return diag.Errorf(CATALOG_ID + " not found! ")
 	}
-	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
 		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
 	}

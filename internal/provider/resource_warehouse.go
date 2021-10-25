@@ -17,6 +17,9 @@ func resourceWarehouse() *schema.Resource {
 		ReadContext:   resourceWarehouseRead,
 		UpdateContext: resourceWarehouseUpdate,
 		DeleteContext: resourceWarehouseDelete,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -184,7 +187,6 @@ func resourceWarehouse() *schema.Resource {
 }
 
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	ctx = context.Background()
 	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
 	apiClient := meta.(*cloudmgr.APIClient)
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
@@ -277,18 +279,17 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %s\n", r.Status)
 	}
 
-	d.SetId(resp.GetId()) //TODO这里应该判断一下
-	d.Set(WAREHOUSE_ID, resp.GetResourceIds()[0])
+	d.SetId(resp.GetResourceIds()[0]) //TODO这里应该判断一下
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
-	return nil
-	//return resourceWarehouseUpdate(ctx, d, meta)
+	//return nil
+	return resourceWarehouseUpdate(ctx, d, meta)
 }
 
 func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	id, ok := d.GetOk(WAREHOUSE_ID)
-	if !ok {
+	id := d.Id()
+	if id == "" {
 		return diag.Errorf("Can not read warehouse,because id is empty")
 	}
 
@@ -297,7 +298,7 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	var r *_nethttp.Response
 	var err error
 
-	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id.(string)).Execute()
+	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id).Execute()
 
 	if err != nil {
 		return nil
@@ -400,11 +401,11 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 
 func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	apiClient := meta.(*cloudmgr.APIClient)
-	resourceId, ok := d.GetOk(WAREHOUSE_ID)
-	if !ok {
+	resourceId := d.Id()
+	if resourceId == "" {
 		return diag.Errorf(WAREHOUSE_ID + " not found! ")
 	}
-	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
 		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
 	}
