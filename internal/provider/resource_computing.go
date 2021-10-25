@@ -194,7 +194,6 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	// response from `CreateWarehouse`: CommonDescribeJobResponse
 	d.SetId(resp.GetId())
-	d.Set(COMPUTING_ID, resp.GetResourceIds()[0])
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
@@ -202,20 +201,123 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 }
 
 func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	id := d.Id()
+	if id == "" {
+		return diag.Errorf("Can not read warehouse,because id is empty")
+	}
+
+	apiClient := meta.(*cloudmgr.APIClient)
+	var resp cloudmgr.CoreDescribeInstanceResponse
+	var r *_nethttp.Response
+	var err error
+
+	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id).Execute()
+
+	if err != nil {
+		return nil
+	}
+	if r.StatusCode != 200 {
+		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
+	}
+	if param, ok := resp.GetArchOk(); !ok {
+		d.Set("arch", param)
+	}
+	if param, ok := resp.GetComponentsOk(); !ok {
+		d.Set("components", param)
+	}
+	if param, ok := resp.GetCreatedAtOk(); !ok {
+		d.Set("created_at", param)
+	}
+	if param, ok := resp.GetDestroyedAtOk(); !ok {
+		d.Set("destroyed_at", param)
+	}
+	if nic, ok := resp.GetElasticNicOk(); !ok {
+		var nic_map = make(map[string]interface{})
+		if param, ok2 := nic.GetElasticNicIdOk(); !ok2 {
+			nic_map["elastic_nic_id"] = param
+		}
+		if param, ok2 := nic.GetIpaddressesOk(); !ok2 {
+			nic_map["ipaddresses"] = param
+		}
+		d.Set("nic", nic_map)
+	}
+	if param, ok := resp.GetHealthStatusOk(); !ok {
+		d.Set("health_status", param)
+	}
+	if param, ok := resp.GetHostnameOk(); !ok {
+		d.Set("hostname", param)
+	}
+	if param, ok := resp.GetIdOk(); !ok {
+		d.Set("id", param)
+	}
+	if param, ok := resp.GetImageOk(); !ok {
+		d.Set("image", param)
+	}
+	if internet, ok := resp.GetInternetOk(); !ok {
+		var internet_map = make(map[string]interface{})
+		if param, ok2 := internet.GetBandwidthOk(); !ok2 {
+			internet_map["band_width"] = param
+		}
+		if param, ok2 := internet.GetElasticIpOk(); !ok2 {
+			internet_map["elastic_ip"] = param
+		}
+		if param, ok2 := internet.GetElasticIpIdOk(); !ok2 {
+			internet_map["elastic_ip_id"] = param
+		}
+		if param, ok2 := internet.GetPublicIpOk(); !ok2 {
+			internet_map["public_ip"] = param
+		}
+		d.Set("internet", internet_map)
+	}
+	if param, ok := resp.GetIpaddressesOk(); !ok {
+		d.Set("ipaddresses", param)
+	}
+	if param, ok := resp.GetMessageOk(); !ok {
+		d.Set("message", param)
+	}
+	if param, ok := resp.GetNameOk(); !ok {
+		d.Set("name", param)
+	}
+	if param, ok := resp.GetResourcePoolOk(); !ok {
+		d.Set("resource_pool", param)
+	}
+	if param, ok := resp.GetScaleTypeOk(); !ok {
+		d.Set("scale_type", param)
+	}
+	if param, ok := resp.GetServiceOk(); !ok {
+		d.Set("service", param)
+	}
+	if param, ok := resp.GetStatusOk(); !ok {
+		d.Set("status", param)
+	}
+	if param, ok := resp.GetTenantOk(); !ok {
+		d.Set("tenant", param)
+	}
+	if param, ok := resp.GetTypeOk(); !ok {
+		d.Set("type", param)
+	}
+	if param, ok := resp.GetVendorOk(); !ok {
+		d.Set("vendor", param)
+	}
+	if param, ok := resp.GetZoneOk(); !ok {
+		d.Set("zone", param)
+	}
+
+	//TODO 判断是否被删除
 	return nil
 }
 
 func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return nil
+	return resourceComputingRead(ctx, d, meta)
 }
 
 func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	apiClient := meta.(*cloudmgr.APIClient)
-	resourceId, ok := d.GetOk(COMPUTING_ID)
-	if !ok {
-		return diag.Errorf(WAREHOUSE_ID + " not found! ")
+	resourceId := d.Id()
+	if resourceId == "" {
+		return diag.Errorf(COMPUTING_ID + " not found! ")
 	}
-	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId.(string)).Execute()
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
 		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
 	}
