@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
@@ -23,6 +24,11 @@ func resourceCatalog() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "name.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
+			"image": {
+				Description: "image.",
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
@@ -50,11 +56,6 @@ func resourceCatalog() *schema.Resource {
 						"volume_size": {
 							Description: "etcd volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "etcd image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -91,11 +92,6 @@ func resourceCatalog() *schema.Resource {
 							Type:        schema.TypeInt,
 							Optional:    true,
 						},
-						"image": {
-							Description: "catalog image.",
-							Type:        schema.TypeString,
-							Optional:    true,
-						},
 						"zone": {
 							Description: "catalog zone.",
 							Type:        schema.TypeString,
@@ -128,11 +124,6 @@ func resourceCatalog() *schema.Resource {
 						"volume_size": {
 							Description: "fdb volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "fdb image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -222,6 +213,11 @@ func resourceCatalog() *schema.Resource {
 func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateCatalogRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
+	image := d.Get("image")
+	errMsg, err2 := checkCatalogCreateSchema(d)
+	if err2 != nil {
+		return diag.Errorf(errMsg)
+	}
 	etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
 	var etcdProperties = etcdPropertiesRaw[0].(map[string]interface{})
 	etcd := cloudmgr.CoreCreateServiceComponentRequest{
@@ -230,7 +226,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 			InstanceType: String(etcdProperties["instance_type"].(string)),
 			VolumeType:   String(etcdProperties["volume_type"].(string)),
 			VolumeSize:   Int32(etcdProperties["volume_size"].(int)),
-			Image:        String(etcdProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(etcdProperties["zone"].(string)),
 		},
 	}
@@ -243,7 +239,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 			InstanceType: String(catalogProperties["instance_type"].(string)),
 			VolumeType:   String(catalogProperties["volume_type"].(string)),
 			VolumeSize:   Int32(catalogProperties["volume_size"].(int)),
-			Image:        String(catalogProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(catalogProperties["zone"].(string)),
 		},
 	}
@@ -256,23 +252,34 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 			InstanceType: String(fdbProperties["instance_type"].(string)),
 			VolumeType:   String(fdbProperties["volume_type"].(string)),
 			VolumeSize:   Int32(fdbProperties["volume_size"].(int)),
-			Image:        String(fdbProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(fdbProperties["zone"].(string)),
 		},
 	}
 
-	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
-	var extraProperties = extraPropertiesRaw[0].(map[string]interface{})
-	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
-		Vpc:     String(extraProperties["vpc"].(string)),
-		Subnet:  String(extraProperties["subnet"].(string)),
-		Keypair: String(extraProperties["keypair"].(string)),
+	if extraRaw, ok := d.GetOk("extra"); ok {
+		extraMap := extraRaw.(map[string]interface{})
+		extra := cloudmgr.CoreCreateServiceIaasExtraRequest{}
+		if vpc, ok := extraMap["vpc"]; ok {
+			extra.Vpc = String(vpc.(string))
+		}
+		if subnet, ok := extraMap["subnet"]; ok {
+			extra.Vpc = String(subnet.(string))
+		}
+		if keypair, ok := extraMap["keypair"]; ok {
+			extra.Vpc = String(keypair.(string))
+		}
+		body.Extras = &extra
 	}
 
-	ossPropertiesRaw := d.Get("oss").(*schema.Set).List()
-	var ossProperties = ossPropertiesRaw[0].(map[string]interface{})
-	oss := cloudmgr.CoreCreateServiceOssZoneRequest{
-		Name: String(ossProperties["name"].(string)),
+	if ossOk, ok := d.GetOk("oss"); ok {
+		ossProperties := ossOk.(map[string]interface{})
+		if ossName, ok := ossProperties["name"]; ok {
+			oss := cloudmgr.CoreCreateServiceOssZoneRequest{
+				Name: String(ossName.(string)),
+			}
+			body.Oss = &oss
+		}
 	}
 
 	metadataPropertiesRaw := d.Get("metadata").(*schema.Set).List()
@@ -281,15 +288,18 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	metadata["default_database"] = metadataProperties["default_database"].(string)
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
-	metadata["logic_part"] = metadataProperties["logic_part"].(int)
+	if numberSegments, ok := metadataProperties["number_segments"]; ok {
+		metadata["number_segments"] = numberSegments
+	}
+	if logicPart, ok := metadataProperties["logic_part"]; ok {
+		metadata["logic_part"] = logicPart
+	}
 
 	name := d.Get("name").(string)
 	body.Name = &name
 	body.Etcd = &etcd
 	body.Catalog = &catalog
 	body.Fdb = &fdb
-	body.Extras = &extra
-	body.Oss = &oss
 	body.Metadata = &metadata
 
 	resp, r, err := apiClient.CoreWarehouseServiceApi.CreateCatalog(ctx).Body(body).Execute()
@@ -303,8 +313,6 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
-
-	//return nil
 	return resourceCatalogUpdate(ctx, d, meta)
 }
 
@@ -451,4 +459,125 @@ func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta int
 	}
 	d.SetId("")
 	return nil
+}
+
+func checkCatalogCreateSchema(d *schema.ResourceData) (string, error) {
+	res := ""
+	_, ok := d.GetOk("name")
+	if !ok {
+		res += "schema name field is missing\n"
+	}
+	_, ok = d.GetOk("image")
+	if !ok {
+		res += "schema image field is missing\n"
+	}
+	etcdRaw, ok := d.GetOk("etcd")
+	if !ok {
+		res += "schema etcd field is missing\n"
+	}
+	etcdMap := etcdRaw.(map[string]interface{})
+	if _, ok := etcdMap["count"]; !ok {
+		res += "schema etcd.count field is missing\n"
+	}
+	if _, ok := etcdMap["instance_type"]; !ok {
+		res += "schema etcd.instance_type field is missing\n"
+	}
+	if _, ok := etcdMap["volume_type"]; !ok {
+		res += "schema etcd.volume_type field is missing\n"
+	}
+	if _, ok := etcdMap["volume_size"]; !ok {
+		res += "schema etcd.volume_size field is missing\n"
+	}
+	if _, ok := etcdMap["zone"]; !ok {
+		res += "schema etcd.zone field is missing\n"
+	}
+
+	catalogRaw, ok := d.GetOk("catalog")
+	if !ok {
+		res += "schema catalog field is missing\n"
+	}
+	catalogMap := catalogRaw.(map[string]interface{})
+	if _, ok := catalogMap["count"]; !ok {
+		res += "schema catalog.count field is missing\n"
+	}
+	if _, ok := catalogMap["instance_type"]; !ok {
+		res += "schema catalog.instance_type field is missing\n"
+	}
+	if _, ok := catalogMap["volume_type"]; !ok {
+		res += "schema catalog.volume_type field is missing\n"
+	}
+	if _, ok := catalogMap["volume_size"]; !ok {
+		res += "schema catalog.volume_size field is missing\n"
+	}
+	if _, ok := catalogMap["zone"]; !ok {
+		res += "schema catalog.zone field is missing\n"
+	}
+
+	fdbRaw, ok := d.GetOk("fdb")
+	if !ok {
+		res += "schema segment field is missing\n"
+	}
+	fdbMap := fdbRaw.(map[string]interface{})
+	if _, ok := fdbMap["count"]; !ok {
+		res += "schema fdb.count field is missing\n"
+	}
+	if _, ok := fdbMap["instance_type"]; !ok {
+		res += "schema fdb.instance_type field is missing\n"
+	}
+	if _, ok := fdbMap["volume_type"]; !ok {
+		res += "schema fdb.volume_type field is missing\n"
+	}
+	if _, ok := fdbMap["volume_size"]; !ok {
+		res += "schema fdb.volume_size field is missing\n"
+	}
+	if _, ok := fdbMap["zone"]; !ok {
+		res += "schema fdb.zone field is missing\n"
+	}
+
+	//extraRaw, ok := d.GetOk("extra")
+	//if !ok {
+	//	res += "schema extra field is missing\n"
+	//}
+	//extraMap := extraRaw.(map[string]interface{})
+	//if _, ok := extraMap["vpc"]; !ok {
+	//	res += "schema extra.vpc field is missing\n"
+	//}
+	//if _, ok := extraMap["subnet"]; !ok {
+	//	res += "schema extra.subnet field is missing\n"
+	//}
+	//if _, ok := extraMap["keypair"]; !ok {
+	//	res += "schema extra.keypair field is missing\n"
+	//}
+
+	//ossRaw, ok := d.GetOk("oss")
+	//if !ok {
+	//	res += "schema oss field is missing\n"
+	//}
+	//ossMap := ossRaw.(map[string]interface{})
+	//if _, ok := ossMap["name"]; !ok {
+	//	res += "schema oss.name field is missing\n"
+	//}
+
+	metadataRaw, ok := d.GetOk("metadata")
+	if !ok {
+		res += "schema metadata field is missing\n"
+	}
+	metadataMap := metadataRaw.(map[string]interface{})
+	if _, ok := metadataMap["default_database"]; !ok {
+		res += "schema metadata.default_database field is missing\n"
+	}
+	if _, ok := metadataMap["default_user"]; !ok {
+		res += "schema metadata.default_user field is missing\n"
+	}
+	if _, ok := metadataMap["default_password"]; !ok {
+		res += "schema metadata.default_password field is missing\n"
+	}
+	//if _, ok := metadataMap["logic_part"]; !ok {
+	//	res += "schema metadata.logic_part field is missing\n"
+	//}
+
+	if res != "" {
+		return res, fmt.Errorf("Input is illegal. ")
+	}
+	return "", nil
 }

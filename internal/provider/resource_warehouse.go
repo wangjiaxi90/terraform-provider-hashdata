@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
@@ -20,10 +21,15 @@ func resourceWarehouse() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-
+		//TODO computing 扩容缩容 catalog 扩容缩容 warehouse 和 volume 支持扩容
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "name.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
+			"image": {
+				Description: "image.",
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
@@ -51,11 +57,6 @@ func resourceWarehouse() *schema.Resource {
 						"volume_size": {
 							Description: "master volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "master image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -90,11 +91,6 @@ func resourceWarehouse() *schema.Resource {
 						"volume_size": {
 							Description: "segment volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "segment image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -187,8 +183,16 @@ func resourceWarehouse() *schema.Resource {
 }
 
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
+	//TODO image field extract
+	body := *cloudmgr.NewCoreCreateWarehouseRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
+	errMsg, err2 := checkWarehouseCreateSchema(d)
+	if err2 != nil {
+		return diag.Errorf(errMsg)
+	}
+
+	image := d.Get("image")
+
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
 	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
 	var masterCount int32 = 1
@@ -198,7 +202,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
 			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
-			Image:        String(masterProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(masterProperties["zone"].(string)),
 		},
 	}
@@ -211,16 +215,24 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 			InstanceType: String(segmentProperties["instance_type"].(string)),
 			VolumeType:   String(segmentProperties["volume_type"].(string)),
 			VolumeSize:   Int32(segmentProperties["volume_size"].(int)),
-			Image:        String(segmentProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
-	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
-	var extraProperties = extraPropertiesRaw[0].(map[string]interface{})
-	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
-		Vpc:     String(extraProperties["vpc"].(string)),
-		Subnet:  String(extraProperties["subnet"].(string)),
-		Keypair: String(extraProperties["keypair"].(string)),
+
+	if extraRaw, ok := d.GetOk("extra"); ok {
+		extraMap := extraRaw.(map[string]interface{})
+		extra := cloudmgr.CoreCreateServiceIaasExtraRequest{}
+		if vpc, ok := extraMap["vpc"]; ok {
+			extra.Vpc = String(vpc.(string))
+		}
+		if subnet, ok := extraMap["subnet"]; ok {
+			extra.Vpc = String(subnet.(string))
+		}
+		if keypair, ok := extraMap["keypair"]; ok {
+			extra.Vpc = String(keypair.(string))
+		}
+		body.Extras = &extra
 	}
 
 	metadataPropertiesRaw := d.Get("metadata").(*schema.Set).List()
@@ -229,44 +241,84 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	metadata["default_database"] = metadataProperties["default_database"].(string)
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
-	metadata["logic_part"] = metadataProperties["logic_part"].(int)
-
-	featurePropertiesRaw := d.Get("feature").(*schema.Set).List()
-	var featureProperties = featurePropertiesRaw[0].(map[string]interface{})
-	feature := cloudmgr.CoreCreateServiceFeatureRequest{
-		LocalStorage:  Bool(featureProperties["local_storage"].(bool)),
-		MirrorStandby: Bool(featureProperties["mirror_standby"].(bool)),
+	if numberSegments, ok := metadataProperties["number_segments"]; ok {
+		metadata["number_segments"] = numberSegments
 	}
+	if logicPart, ok := metadataProperties["logic_part"]; ok {
+		metadata["logic_part"] = logicPart
+	}
+	if featureOk, ok := d.GetOk("feature"); ok {
+		featurePropertiesRaw := featureOk.(*schema.Set).List()
+		var featureProperties = featurePropertiesRaw[0].(map[string]interface{})
+		feature := cloudmgr.CoreCreateServiceFeatureRequest{}
+		if localStorage, ok := featureProperties["local_storage"]; ok {
+			feature.LocalStorage = Bool(localStorage.(bool))
+			if localStorage.(bool) {
+				if ossOk, ok := d.GetOk("oss"); ok {
+					ossProperties := ossOk.(map[string]interface{})
+					if ossName, ok := ossProperties["name"]; ok {
+						oss := cloudmgr.CoreCreateServiceOssZoneRequest{
+							Name: String(ossName.(string)),
+						}
+						body.Oss = &oss
+					} else {
+						return diag.Errorf("Schema oss.name field not found.")
+					}
+				} else {
+					return diag.Errorf("Schema oss field not found.")
+				}
+			}
+		}
+		if mirrorStandby, ok := featureProperties["mirror_standby"]; ok {
+			feature.LocalStorage = Bool(mirrorStandby.(bool))
+			if mirrorStandby.(bool) {
+				if standBy, ok := d.GetOk("standby"); ok {
+					standbyProperties := standBy.(map[string]interface{})
+					if _, ok := standbyProperties["count"]; !ok {
+						return diag.Errorf("Schema standby.count field not found.")
+					}
+					if _, ok := standbyProperties["instance_type"]; !ok {
+						return diag.Errorf("Schema standby.instance_type field not found.")
+					}
+					if _, ok := standbyProperties["volume_type"]; !ok {
+						return diag.Errorf("Schema standby.volume_type field not found.")
+					}
+					if _, ok := standbyProperties["volume_size"]; !ok {
+						return diag.Errorf("Schema standby.volume_size field not found.")
+					}
+					if _, ok := standbyProperties["image"]; !ok {
+						return diag.Errorf("Schema standby.image field not found.")
+					}
+					if _, ok := standbyProperties["zone"]; !ok {
+						return diag.Errorf("Schema standby.zone field not found.")
+					}
+
+					//TODO  mirrorStabdby的image要不要和其余的一样统一
+					standby := cloudmgr.CoreCreateServiceComponentRequest{
+						Iaas: &cloudmgr.CloudmgrcoreIaasResource{
+							Count:        Int32(standbyProperties["count"].(int)),
+							InstanceType: String(standbyProperties["instance_type"].(string)),
+							VolumeType:   String(standbyProperties["volume_type"].(string)),
+							VolumeSize:   Int32(standbyProperties["volume_size"].(int)),
+							Image:        String(standbyProperties["image"].(string)),
+							Zone:         String(standbyProperties["zone"].(string)),
+						},
+					}
+					body.Standby = &standby
+				} else {
+					return diag.Errorf("Schema standby field not found.")
+				}
+			}
+		}
+		body.Features = &feature
+	}
+
 	name := d.Get("name").(string)
 	body.Name = &name
 	body.Master = &master
 	body.Segment = &segment
-	body.Extras = &extra
 	body.Metadata = &metadata
-	body.Features = &feature
 
-	if featureProperties["local_storage"].(bool) {
-		ossProperties := d.Get("oss").(map[string]interface{})
-		oss := cloudmgr.CoreCreateServiceOssZoneRequest{
-			Name: String(ossProperties["name"].(string)),
-		}
-		body.Oss = &oss
-	}
-
-	if featureProperties["mirror_standby"].(bool) {
-		standbyProperties := d.Get("standby").(map[string]interface{})
-		standby := cloudmgr.CoreCreateServiceComponentRequest{
-			Iaas: &cloudmgr.CloudmgrcoreIaasResource{
-				Count:        Int32(standbyProperties["count"].(int)),
-				InstanceType: String(standbyProperties["instance_type"].(string)),
-				VolumeType:   String(standbyProperties["volume_type"].(string)),
-				VolumeSize:   Int32(standbyProperties["volume_size"].(int)),
-				Image:        String(standbyProperties["image"].(string)),
-				Zone:         String(standbyProperties["zone"].(string)),
-			},
-		}
-		body.Standby = &standby
-	}
 	var resp cloudmgr.CommonDescribeJobResponse
 	var r *_nethttp.Response
 	var err error
@@ -279,7 +331,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse``: %s\n", r.Status)
 	}
 
-	d.SetId(resp.GetResourceIds()[0]) //TODO这里应该判断一下
+	d.SetId(resp.GetResourceIds()[0])
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp.GetId()); errRefresh != nil {
 		return diag.Errorf(errRefresh.Error())
 	}
@@ -417,4 +469,103 @@ func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	d.SetId("")
 	return nil
+}
+
+func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
+	res := ""
+	_, ok := d.GetOk("name")
+	if !ok {
+		res += "schema name field is missing\n"
+	}
+	_, ok = d.GetOk("image")
+	if !ok {
+		res += "schema image field is missing\n"
+	}
+	masterRaw, ok := d.GetOk("master")
+	if !ok {
+		res += "schema master field is missing\n"
+	}
+	masterMap := masterRaw.(map[string]interface{})
+	if _, ok := masterMap["instance_type"]; !ok {
+		res += "schema master.instance_type field is missing\n"
+	}
+	if _, ok := masterMap["volume_type"]; !ok {
+		res += "schema master.volume_type field is missing\n"
+	}
+	if _, ok := masterMap["volume_size"]; !ok {
+		res += "schema master.volume_size field is missing\n"
+	}
+	if _, ok := masterMap["zone"]; !ok {
+		res += "schema master.zone field is missing\n"
+	}
+
+	segmentRaw, ok := d.GetOk("segment")
+	if !ok {
+		res += "schema segment field is missing\n"
+	}
+	segmentMap := segmentRaw.(map[string]interface{})
+	if _, ok := segmentMap["count"]; !ok {
+		res += "schema segment.count field is missing\n"
+	}
+	if _, ok := segmentMap["instance_type"]; !ok {
+		res += "schema segment.instance_type field is missing\n"
+	}
+	if _, ok := segmentMap["volume_type"]; !ok {
+		res += "schema segment.volume_type field is missing\n"
+	}
+	if _, ok := segmentMap["volume_size"]; !ok {
+		res += "schema segment.volume_size field is missing\n"
+	}
+	if _, ok := segmentMap["zone"]; !ok {
+		res += "schema segment.zone field is missing\n"
+	}
+
+	//extraRaw, ok := d.GetOk("extra")
+	//if !ok {
+	//	res += "schema extra field is missing\n"
+	//}
+	//extraMap := extraRaw.(map[string]interface{})
+	//if _, ok := extraMap["vpc"]; !ok {
+	//	res += "schema extra.vpc field is missing\n"
+	//}
+	//if _, ok := extraMap["subnet"]; !ok {
+	//	res += "schema extra.subnet field is missing\n"
+	//}
+	//if _, ok := extraMap["keypair"]; !ok {
+	//	res += "schema extra.keypair field is missing\n"
+	//}
+
+	metadataRaw, ok := d.GetOk("metadata")
+	if !ok {
+		res += "schema metadata field is missing\n"
+	}
+	metadataMap := metadataRaw.(map[string]interface{})
+	if _, ok := metadataMap["default_database"]; !ok {
+		res += "schema metadata.default_database field is missing\n"
+	}
+	if _, ok := metadataMap["default_user"]; !ok {
+		res += "schema metadata.default_user field is missing\n"
+	}
+	if _, ok := metadataMap["default_password"]; !ok {
+		res += "schema metadata.default_password field is missing\n"
+	}
+	//if _, ok := metadataMap["logic_part"]; !ok {
+	//	res += "schema metadata.logic_part field is missing\n"
+	//}
+
+	//featureRaw, ok := d.GetOk("feature")
+	//if !ok {
+	//	res += "schema feature field is missing\n"
+	//}
+	//featureMap := featureRaw.(map[string]interface{})
+	//if _, ok := featureMap["local_storage"]; !ok {
+	//	res += "schema feature.local_storage field is missing\n"
+	//}
+	//if _, ok := featureMap["mirror_standby"]; !ok {
+	//	res += "schema feature.mirror_standby field is missing\n"
+	//}
+	if res != "" {
+		return res, fmt.Errorf("Input is illegal. ")
+	}
+	return "", nil
 }

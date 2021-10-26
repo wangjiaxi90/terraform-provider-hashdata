@@ -47,10 +47,10 @@ func New(version string) func() *schema.Provider {
 					Optional:    true,
 					Description: descriptions["client_secret"],
 				},
-				"end_point": {
+				"endpoint": {
 					Type:        schema.TypeString,
 					Optional:    true,
-					Description: descriptions["end_point"],
+					Description: descriptions["endpoint"],
 				},
 			},
 			DataSourcesMap: map[string]*schema.Resource{ //这个在hcl文件中用data字段获取
@@ -97,11 +97,11 @@ func configure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.D
 			return nil, diag.Errorf("Don't have client_secret variable in provider scope.")
 		}
 	}
-	end_point, ok := d.GetOk("end_point")
+	endpoint, ok := d.GetOk("endpoint")
 	if !ok {
-		end_point = os.Getenv("HASHDATA_END_POINT")
-		if end_point == "" {
-			end_point = DEFAULT_ENDPOINT
+		endpoint = os.Getenv("HASHDATA_END_POINT")
+		if endpoint == "" {
+			endpoint = DEFAULT_ENDPOINT
 		}
 	}
 	config := Config{
@@ -109,7 +109,7 @@ func configure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.D
 		Password:     password.(string),
 		ClientId:     client_id.(string),
 		ClientSecret: client_secret.(string),
-		EndPoint:     end_point.(string),
+		EndPoint:     endpoint.(string),
 	}
 	client, err := config.Client() // TODO 校验参数啥的
 	if err != nil {
@@ -126,5 +126,6 @@ func init() {
 		"password":      "hashdata password",
 		"client_id":     "hashdata client_id",
 		"client_secret": "hashdata client_secret",
+		"endpoint":      "hashdata endpoint",
 	}
 }

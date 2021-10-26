@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
@@ -31,6 +32,11 @@ func resourceComputing() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
+			"image": {
+				Description: "image.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
 			"master": {
 				Description: "master.",
 				Type:        schema.TypeSet,
@@ -55,11 +61,6 @@ func resourceComputing() *schema.Resource {
 						"volume_size": {
 							Description: "master volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "master image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -94,11 +95,6 @@ func resourceComputing() *schema.Resource {
 						"volume_size": {
 							Description: "segment volume_size.",
 							Type:        schema.TypeInt,
-							Optional:    true,
-						},
-						"image": {
-							Description: "segment image.",
-							Type:        schema.TypeString,
 							Optional:    true,
 						},
 						"zone": {
@@ -138,9 +134,14 @@ func resourceComputing() *schema.Resource {
 }
 
 func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	body := *cloudmgr.NewCoreCreateWarehouseRequest() // CoreCreateWarehouseRequest |
+	body := *cloudmgr.NewCoreCreateWarehouseRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
-	catalog := d.Get("catalog").(string) //TODO 这里判断一下catalog是否为nil 或者为空 如果true的话
+	errMsg, err2 := checkComputingCreateSchema(d)
+	if err2 != nil {
+		return diag.Errorf(errMsg)
+	}
+	image := d.Get("image")
+	catalog := d.Get("catalog").(string)
 
 	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
 	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
@@ -152,7 +153,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 			InstanceType: String(masterProperties["instance_type"].(string)),
 			VolumeType:   String(masterProperties["volume_type"].(string)),
 			VolumeSize:   Int32(masterProperties["volume_size"].(int)),
-			Image:        String(masterProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(masterProperties["zone"].(string)),
 		},
 	}
@@ -165,17 +166,24 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 			InstanceType: String(segmentProperties["instance_type"].(string)),
 			VolumeType:   String(segmentProperties["volume_type"].(string)),
 			VolumeSize:   Int32(segmentProperties["volume_size"].(int)),
-			Image:        String(segmentProperties["image"].(string)),
+			Image:        String(image.(string)),
 			Zone:         String(segmentProperties["zone"].(string)),
 		},
 	}
 
-	extraPropertiesRaw := d.Get("extra").(*schema.Set).List()
-	var extraProperties = extraPropertiesRaw[0].(map[string]interface{})
-	extra := cloudmgr.CoreCreateServiceIaasExtraRequest{
-		Vpc:     String(extraProperties["vpc"].(string)),
-		Subnet:  String(extraProperties["subnet"].(string)),
-		Keypair: String(extraProperties["keypair"].(string)),
+	if extraRaw, ok := d.GetOk("extra"); ok {
+		extraMap := extraRaw.(map[string]interface{})
+		extra := cloudmgr.CoreCreateServiceIaasExtraRequest{}
+		if vpc, ok := extraMap["vpc"]; ok {
+			extra.Vpc = String(vpc.(string))
+		}
+		if subnet, ok := extraMap["subnet"]; ok {
+			extra.Vpc = String(subnet.(string))
+		}
+		if keypair, ok := extraMap["keypair"]; ok {
+			extra.Vpc = String(keypair.(string))
+		}
+		body.Extras = &extra
 	}
 
 	name := d.Get("name").(string)
@@ -183,7 +191,6 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	body.Master = &master
 	body.Segment = &segment
 	body.Catalog = &catalog
-	body.Extras = &extra
 	var resp cloudmgr.CommonDescribeJobResponse
 	var r *_nethttp.Response
 	var err error
@@ -346,4 +353,83 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	d.SetId("")
 	return nil
+}
+
+func checkComputingCreateSchema(d *schema.ResourceData) (string, error) {
+	res := ""
+	_, ok := d.GetOk("name")
+	if !ok {
+		res += "schema name field is missing\n"
+	}
+	_, ok = d.GetOk("image")
+	if !ok {
+		res += "schema image field is missing\n"
+	}
+	_, ok = d.GetOk("catalog")
+	if !ok {
+		res += "schema name field is missing\n"
+	}
+
+	masterRaw, ok := d.GetOk("master")
+	if !ok {
+		res += "schema master field is missing\n"
+	}
+	masterMap := masterRaw.(map[string]interface{})
+	if _, ok := masterMap["instance_type"]; !ok {
+		res += "schema master.instance_type field is missing\n"
+	}
+	if _, ok := masterMap["volume_type"]; !ok {
+		res += "schema master.volume_type field is missing\n"
+	}
+	if _, ok := masterMap["volume_size"]; !ok {
+		res += "schema master.volume_size field is missing\n"
+	}
+	if _, ok := masterMap["image"]; !ok {
+		res += "schema master.image field is missing\n"
+	}
+	if _, ok := masterMap["zone"]; !ok {
+		res += "schema master.zone field is missing\n"
+	}
+
+	segmentRaw, ok := d.GetOk("segment")
+	if !ok {
+		res += "schema segment field is missing\n"
+	}
+	segmentMap := segmentRaw.(map[string]interface{})
+	if _, ok := segmentMap["count"]; !ok {
+		res += "schema segment.count field is missing\n"
+	}
+	if _, ok := segmentMap["instance_type"]; !ok {
+		res += "schema segment.instance_type field is missing\n"
+	}
+	if _, ok := segmentMap["volume_type"]; !ok {
+		res += "schema segment.volume_type field is missing\n"
+	}
+	if _, ok := segmentMap["volume_size"]; !ok {
+		res += "schema segment.volume_size field is missing\n"
+	}
+	if _, ok := segmentMap["image"]; !ok {
+		res += "schema segment.image field is missing\n"
+	}
+	if _, ok := segmentMap["zone"]; !ok {
+		res += "schema segment.zone field is missing\n"
+	}
+	//extraRaw, ok := d.GetOk("extra")
+	//if !ok {
+	//	res += "schema extra field is missing\n"
+	//}
+	//extraMap := extraRaw.(map[string]interface{})
+	//if _, ok := extraMap["vpc"]; !ok {
+	//	res += "schema extra.vpc field is missing\n"
+	//}
+	//if _, ok := extraMap["subnet"]; !ok {
+	//	res += "schema extra.subnet field is missing\n"
+	//}
+	//if _, ok := extraMap["keypair"]; !ok {
+	//	res += "schema extra.keypair field is missing\n"
+	//}
+	if res != "" {
+		return res, fmt.Errorf("Input is illegal. ")
+	}
+	return "", nil
 }
