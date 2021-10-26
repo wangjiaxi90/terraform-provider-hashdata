@@ -418,14 +418,27 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	//先stop 在 delete
+
 	apiClient := meta.(*cloudmgr.APIClient)
 	resourceId := d.Id()
 	if resourceId == "" {
 		return diag.Errorf(CATALOG_ID + " not found! ")
 	}
+	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Execute()
+	if err1 != nil {
+		return diag.Errorf("Error when calling catalog `CoreServiceApi.StopService``: %v\n", err1)
+	}
+	if r1.StatusCode != 200 {
+		return diag.Errorf("Stop resource fail with %d . ", r1.StatusCode)
+	}
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp1.GetId()); errRefresh != nil {
+		return diag.Errorf(errRefresh.Error())
+	}
+
 	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
-		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
+		return diag.Errorf("Error when calling catalog `CoreServiceApi.DeleteService``: %v\n", err)
 	}
 	if r.StatusCode != 200 {
 		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
