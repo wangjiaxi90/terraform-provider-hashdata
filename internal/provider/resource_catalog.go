@@ -425,7 +425,10 @@ func resourceCatalogDelete(ctx context.Context, d *schema.ResourceData, meta int
 	if resourceId == "" {
 		return diag.Errorf(CATALOG_ID + " not found! ")
 	}
-	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Execute()
+	False := false
+	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Body(cloudmgr.CoreStopServiceRequest{
+		Force: &False,
+	}).Execute()
 	if err1 != nil {
 		return diag.Errorf("Error when calling catalog `CoreServiceApi.StopService``: %v\n", err1)
 	}

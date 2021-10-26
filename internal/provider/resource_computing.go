@@ -320,7 +320,10 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf(COMPUTING_ID + " not found! ")
 	}
 
-	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Execute()
+	False := false
+	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Body(cloudmgr.CoreStopServiceRequest{
+		Force: &False,
+	}).Execute()
 	if err1 != nil {
 		return diag.Errorf("Error when calling computing `CoreServiceApi.StopService``: %v\n", err1)
 	}
