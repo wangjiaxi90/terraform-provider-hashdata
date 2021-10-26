@@ -320,19 +320,19 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf(COMPUTING_ID + " not found! ")
 	}
 
-	False := false
-	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Body(cloudmgr.CoreStopServiceRequest{
-		Force: &False,
-	}).Execute()
-	if err1 != nil {
-		return diag.Errorf("Error when calling computing `CoreServiceApi.StopService``: %v\n", err1)
-	}
-	if r1.StatusCode != 200 {
-		return diag.Errorf("Stop resource computing fail with %d . ", r1.StatusCode)
-	}
-	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp1.GetId()); errRefresh != nil {
-		return diag.Errorf(errRefresh.Error())
-	}
+	//False := false
+	//resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Body(cloudmgr.CoreStopServiceRequest{
+	//	Force: &False,
+	//}).Execute()
+	//if err1 != nil {
+	//	return diag.Errorf("Error when calling computing `CoreServiceApi.StopService``: %v\n", err1)
+	//}
+	//if r1.StatusCode != 200 {
+	//	return diag.Errorf("Stop resource computing fail with %d . ", r1.StatusCode)
+	//}
+	//if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp1.GetId()); errRefresh != nil {
+	//	return diag.Errorf(errRefresh.Error())
+	//}
 
 	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
