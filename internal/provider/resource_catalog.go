@@ -17,7 +17,9 @@ func resourceCatalog() *schema.Resource {
 		ReadContext:   resourceCatalogRead,
 		UpdateContext: resourceCatalogUpdate,
 		DeleteContext: resourceCatalogDelete,
-
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "name.",

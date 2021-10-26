@@ -17,7 +17,9 @@ func resourceComputing() *schema.Resource {
 		ReadContext:   resourceComputingRead,
 		UpdateContext: resourceComputingUpdate,
 		DeleteContext: resourceComputingDelete,
-
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "name.",
