@@ -291,7 +291,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	if numberSegments, ok := metadataProperties["number_segments"]; ok {
 		if numberSegments.(int) != 0 {
 			metadata["number_segments"] = numberSegments
-		}∂
+		}
 	}
 	if logicPart, ok := metadataProperties["logic_part"]; ok {
 		if logicPart.(int) != 0 {
