@@ -196,7 +196,12 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	var err error
 	resp, r, err = apiClient.CoreWarehouseServiceApi.CreateWarehouse(ctx).Body(body).Execute()
 	if err != nil {
-		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing``: %v\n", err)
+		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing`: %s\n", errInner2.ErrorMessage)
+			}
+		}
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing` (Error not format): %v\n", err)
 	}
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing``: %s\n", r.Status)
@@ -223,7 +228,12 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id).Execute()
 
 	if err != nil {
-		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing``: %v\n", err)
+		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance`: %s\n", errInner2.ErrorMessage)
+			}
+		}
+		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance` (Error not format): %v\n", err)
 	}
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
@@ -332,7 +342,12 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		component := []string{"segment"}
 		resp, r, err := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if err != nil {
-			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %v\n", err)
+			if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", errInner2.ErrorMessage)
+				}
+			}
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", err)
 		}
 		if r.StatusCode != 200 {
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", r.Status)
@@ -429,7 +444,12 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 
 	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
 	if err != nil {
-		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService``: %v\n", err)
+		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+				return diag.Errorf("Error when calling `CoreServiceApi.DeleteService`: %s\n", errInner2.ErrorMessage)
+			}
+		}
+		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService` (Error not format): %v\n", err)
 	}
 	if r.StatusCode != 200 {
 		return diag.Errorf("Delete resource fail with %d . ", r.StatusCode)
