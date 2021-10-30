@@ -172,7 +172,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if extraRaw, ok := d.GetOk("extra"); ok {
-		extraMap := extraRaw.(map[string]interface{})
+		extraMap := extraRaw.(*schema.Set).List()[0].(map[string]interface{})
 		extra := cloudmgr.CoreCreateServiceIaasExtraRequest{}
 		if vpc, ok := extraMap["vpc"]; ok {
 			extra.Vpc = String(vpc.(string))

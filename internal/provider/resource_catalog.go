@@ -258,7 +258,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if extraRaw, ok := d.GetOk("extra"); ok {
-		extraMap := extraRaw.(map[string]interface{})
+		extraMap := extraRaw.(*schema.Set).List()[0].(map[string]interface{})
 		extra := cloudmgr.CoreCreateServiceIaasExtraRequest{}
 		if vpc, ok := extraMap["vpc"]; ok {
 			extra.Vpc = String(vpc.(string))
@@ -273,7 +273,7 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if ossOk, ok := d.GetOk("oss"); ok {
-		ossProperties := ossOk.(map[string]interface{})
+		ossProperties := ossOk.(*schema.Set).List()[0].(map[string]interface{})
 		if ossName, ok := ossProperties["name"]; ok {
 			oss := cloudmgr.CoreCreateServiceOssZoneRequest{
 				Name: String(ossName.(string)),
