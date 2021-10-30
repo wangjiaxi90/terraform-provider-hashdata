@@ -178,10 +178,10 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 			extra.Vpc = String(vpc.(string))
 		}
 		if subnet, ok := extraMap["subnet"]; ok {
-			extra.Vpc = String(subnet.(string))
+			extra.Subnet = String(subnet.(string))
 		}
 		if keypair, ok := extraMap["keypair"]; ok {
-			extra.Vpc = String(keypair.(string))
+			extra.Keypair = String(keypair.(string))
 		}
 		body.Extras = &extra
 	}
