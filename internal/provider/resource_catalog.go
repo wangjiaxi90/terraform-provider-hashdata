@@ -638,15 +638,8 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if isServiceStop {
-		respStartService, rStartService, errStartService := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
-		if errStartService != nil {
-			return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %v\v", errStartService)
-		}
-		if rStartService.StatusCode != 200 {
-			return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %s\n", rStartService.Status)
-		}
-		if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStartService.GetId()); eWait != nil {
-			return diag.Errorf("Error when waiting start service %s\n", eWait.Error())
+		if errStartService := startService(ctx, id, apiClient); errStartService != nil {
+			return diag.Errorf(errStartService.Error())
 		}
 	}
 	return resourceCatalogRead(ctx, d, meta)
@@ -702,7 +695,7 @@ func checkCatalogCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema etcd field is missing\n"
 	}
-	etcdMap := etcdRaw.(map[string]interface{})
+	etcdMap := etcdRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := etcdMap["count"]; !ok {
 		res += "schema etcd.count field is missing\n"
 	}
@@ -723,7 +716,7 @@ func checkCatalogCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema catalog field is missing\n"
 	}
-	catalogMap := catalogRaw.(map[string]interface{})
+	catalogMap := catalogRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := catalogMap["count"]; !ok {
 		res += "schema catalog.count field is missing\n"
 	}
@@ -744,7 +737,7 @@ func checkCatalogCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema segment field is missing\n"
 	}
-	fdbMap := fdbRaw.(map[string]interface{})
+	fdbMap := fdbRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := fdbMap["count"]; !ok {
 		res += "schema fdb.count field is missing\n"
 	}
@@ -789,7 +782,7 @@ func checkCatalogCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema metadata field is missing\n"
 	}
-	metadataMap := metadataRaw.(map[string]interface{})
+	metadataMap := metadataRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := metadataMap["default_database"]; !ok {
 		res += "schema metadata.default_database field is missing\n"
 	}

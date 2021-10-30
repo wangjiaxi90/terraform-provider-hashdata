@@ -498,7 +498,7 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 				if errWaitJob != nil {
 					return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
 				}
-				if errStartService := stopService(ctx, id, apiClient); errStartService != nil {
+				if errStartService := startService(ctx, id, apiClient); errStartService != nil {
 					return diag.Errorf(errStartService.Error())
 				}
 			} else {
@@ -543,7 +543,7 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema master field is missing\n"
 	}
-	masterMap := masterRaw.(map[string]interface{})
+	masterMap := masterRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := masterMap["instance_type"]; !ok {
 		res += "schema master.instance_type field is missing\n"
 	}
@@ -561,7 +561,7 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema segment field is missing\n"
 	}
-	segmentMap := segmentRaw.(map[string]interface{})
+	segmentMap := segmentRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := segmentMap["count"]; !ok {
 		res += "schema segment.count field is missing\n"
 	}
@@ -597,7 +597,7 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema metadata field is missing\n"
 	}
-	metadataMap := metadataRaw.(map[string]interface{})
+	metadataMap := metadataRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := metadataMap["default_database"]; !ok {
 		res += "schema metadata.default_database field is missing\n"
 	}

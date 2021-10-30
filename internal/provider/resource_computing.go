@@ -460,7 +460,7 @@ func checkComputingCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema master field is missing\n"
 	}
-	masterMap := masterRaw.(map[string]interface{})
+	masterMap := masterRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := masterMap["instance_type"]; !ok {
 		res += "schema master.instance_type field is missing\n"
 	}
@@ -481,7 +481,7 @@ func checkComputingCreateSchema(d *schema.ResourceData) (string, error) {
 	if !ok {
 		res += "schema segment field is missing\n"
 	}
-	segmentMap := segmentRaw.(map[string]interface{})
+	segmentMap := segmentRaw.(*schema.Set).List()[0].(map[string]interface{})
 	if _, ok := segmentMap["count"]; !ok {
 		res += "schema segment.count field is missing\n"
 	}
