@@ -354,12 +354,12 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	apiClient := meta.(*cloudmgr.APIClient)
-	var resp cloudmgr.CoreDescribeInstanceResponse
+
+	var resp cloudmgr.CoreListInstanceResponse
 	var r *_nethttp.Response
 	var err error
 
-	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id).Execute()
-
+	resp, r, err = apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component([]string{"master"}).Execute() //.DescribeInstance(ctx, id).Execute()
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
@@ -371,19 +371,23 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
 	}
-	if param, ok := resp.GetArchOk(); !ok {
+	if *resp.Count == 0 || *resp.Count > 1{
+		return diag.Errorf("Error when ListServiceInstance")
+	}
+	master := (*resp.Content)[0]
+	if param, ok := master.GetArchOk(); !ok {
 		d.Set("arch", param)
 	}
-	if param, ok := resp.GetComponentsOk(); !ok {
+	if param, ok := master.GetComponentsOk(); !ok {
 		d.Set("components", param)
 	}
-	if param, ok := resp.GetCreatedAtOk(); !ok {
+	if param, ok := master.GetCreatedAtOk(); !ok {
 		d.Set("created_at", param)
 	}
-	if param, ok := resp.GetDestroyedAtOk(); !ok {
+	if param, ok := master.GetDestroyedAtOk(); !ok {
 		d.Set("destroyed_at", param)
 	}
-	if nic, ok := resp.GetElasticNicOk(); !ok {
+	if nic, ok := master.GetElasticNicOk(); !ok {
 		var nic_map = make(map[string]interface{})
 		if param, ok2 := nic.GetElasticNicIdOk(); !ok2 {
 			nic_map["elastic_nic_id"] = param
@@ -393,19 +397,19 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 		}
 		d.Set("nic", nic_map)
 	}
-	if param, ok := resp.GetHealthStatusOk(); !ok {
+	if param, ok := master.GetHealthStatusOk(); !ok {
 		d.Set("health_status", param)
 	}
-	if param, ok := resp.GetHostnameOk(); !ok {
+	if param, ok := master.GetHostnameOk(); !ok {
 		d.Set("hostname", param)
 	}
-	if param, ok := resp.GetIdOk(); !ok {
+	if param, ok := master.GetIdOk(); !ok {
 		d.Set("id", param)
 	}
-	if param, ok := resp.GetImageOk(); !ok {
+	if param, ok := master.GetImageOk(); !ok {
 		d.Set("image", param)
 	}
-	if internet, ok := resp.GetInternetOk(); !ok {
+	if internet, ok := master.GetInternetOk(); !ok {
 		var internet_map = make(map[string]interface{})
 		if param, ok2 := internet.GetBandwidthOk(); !ok2 {
 			internet_map["band_width"] = param
@@ -421,37 +425,37 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 		}
 		d.Set("internet", internet_map)
 	}
-	if param, ok := resp.GetIpaddressesOk(); !ok {
+	if param, ok := master.GetIpaddressesOk(); !ok {
 		d.Set("ipaddresses", param)
 	}
-	if param, ok := resp.GetMessageOk(); !ok {
+	if param, ok := master.GetMessageOk(); !ok {
 		d.Set("message", param)
 	}
-	if param, ok := resp.GetNameOk(); !ok {
+	if param, ok := master.GetNameOk(); !ok {
 		d.Set("name", param)
 	}
-	if param, ok := resp.GetResourcePoolOk(); !ok {
+	if param, ok := master.GetResourcePoolOk(); !ok {
 		d.Set("resource_pool", param)
 	}
-	if param, ok := resp.GetScaleTypeOk(); !ok {
+	if param, ok := master.GetScaleTypeOk(); !ok {
 		d.Set("scale_type", param)
 	}
-	if param, ok := resp.GetServiceOk(); !ok {
+	if param, ok := master.GetServiceOk(); !ok {
 		d.Set("service", param)
 	}
-	if param, ok := resp.GetStatusOk(); !ok {
+	if param, ok := master.GetStatusOk(); !ok {
 		d.Set("status", param)
 	}
-	if param, ok := resp.GetTenantOk(); !ok {
+	if param, ok := master.GetTenantOk(); !ok {
 		d.Set("tenant", param)
 	}
-	if param, ok := resp.GetTypeOk(); !ok {
+	if param, ok := master.GetTypeOk(); !ok {
 		d.Set("type", param)
 	}
-	if param, ok := resp.GetVendorOk(); !ok {
+	if param, ok := master.GetVendorOk(); !ok {
 		d.Set("vendor", param)
 	}
-	if param, ok := resp.GetZoneOk(); !ok {
+	if param, ok := master.GetZoneOk(); !ok {
 		d.Set("zone", param)
 	}
 
