@@ -98,7 +98,7 @@ func startService(ctx context.Context, id string, apiClient *cloudmgr.APIClient)
 }
 
 func stopService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
-	respStopService, rStopService, errStopService := apiClient.CoreServiceApi.StopService(ctx, id).Execute()
+	respStopService, rStopService, errStopService := apiClient.CoreServiceApi.StopService(ctx, id).Body(cloudmgr.CoreStopServiceRequest{Force: Bool(true)}).Execute()
 	if errStopService != nil {
 		return fmt.Errorf("Error when calling `CoreServiceApi.StopService`: %v\v", errStopService)
 	}
