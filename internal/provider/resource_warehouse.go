@@ -241,10 +241,14 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
 	if numberSegments, ok := metadataProperties["number_segments"]; ok {
-		metadata["number_segments"] = numberSegments
+		if val, ok := numberSegments.(int); ok && val != 0 {
+			metadata["number_segments"] = numberSegments
+		}
 	}
 	if logicPart, ok := metadataProperties["logic_part"]; ok {
-		metadata["logic_part"] = logicPart
+		if val, ok := logicPart.(int); ok && val != 0 {
+			metadata["logic_part"] = logicPart
+		}
 	}
 	if featureOk, ok := d.GetOk("feature"); ok {
 		featurePropertiesRaw := featureOk.(*schema.Set).List()

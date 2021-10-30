@@ -289,10 +289,14 @@ func resourceCatalogCreate(ctx context.Context, d *schema.ResourceData, meta int
 	metadata["default_user"] = metadataProperties["default_user"].(string)
 	metadata["default_password"] = metadataProperties["default_password"].(string)
 	if numberSegments, ok := metadataProperties["number_segments"]; ok {
-		metadata["number_segments"] = numberSegments
+		if numberSegments.(int) != 0 {
+			metadata["number_segments"] = numberSegments
+		}∂
 	}
 	if logicPart, ok := metadataProperties["logic_part"]; ok {
-		metadata["logic_part"] = logicPart
+		if logicPart.(int) != 0 {
+			metadata["logic_part"] = logicPart
+		}
 	}
 
 	name := d.Get("name").(string)
