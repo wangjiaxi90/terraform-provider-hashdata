@@ -21,7 +21,7 @@ func resourceWarehouse() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		//TODO computing 扩容缩容 catalog 扩容缩容 warehouse 和 volume 支持扩容
+		//TODO computing 扩容缩容 catalog 扩容缩容 fdb 扩容缩容 warehouse 和 volume 支持扩容
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Description: "name.",
@@ -183,7 +183,6 @@ func resourceWarehouse() *schema.Resource {
 }
 
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	//TODO image field extract
 	body := *cloudmgr.NewCoreCreateWarehouseRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
 	errMsg, err2 := checkWarehouseCreateSchema(d)
@@ -447,7 +446,66 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	//TODO not support update
+	id := d.Id()
+	if id == "" {
+		return diag.Errorf("Can not read warehouse,because id is empty")
+	}
+	apiClient := meta.(*cloudmgr.APIClient)
+	if d.HasChange("segment") && !d.IsNewResource() {
+		//step 1: describe instance
+		//step 2: getCount
+		//step 3: judgment expend or shrink
+		//step 4: stop service
+		//step 4: async job
+		component := []string{"segment"}
+		resp, r, err := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+		if err != nil {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %v\n", err)
+		}
+		if r.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", r.Status)
+		}
+		countOld := resp.GetCount()
+
+		segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
+		var segmentProperties = segmentPropertiesRaw[0].(map[string]interface{})
+		countNew := segmentProperties["count"].(int)
+
+		if int32(countNew) != countOld {
+			componentRequestMap := make(map[string]interface{})
+			var respScaleOut cloudmgr.CommonDescribeJobResponse
+			var rScaleOut *_nethttp.Response
+			var errScaleOut error
+			if int32(countNew) > countOld {
+				if errStopService := stopService(ctx, id, apiClient); errStopService != nil {
+					return diag.Errorf(errStopService.Error())
+				}
+				componentRequestMap["segment"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+					Iaas: &cloudmgr.CoreScaleOutIaasResource{
+						Count: Int32(countNew),
+					},
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+				if errScaleOut != nil {
+					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %v\v", err)
+				}
+				if rScaleOut.StatusCode != 200 {
+					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", r.Status)
+				}
+				errWaitJob := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
+				if errWaitJob != nil {
+					return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
+				}
+				if errStartService := stopService(ctx, id, apiClient); errStartService != nil {
+					return diag.Errorf(errStartService.Error())
+				}
+			} else {
+				return diag.Errorf("")
+			}
+		}
+	}
 	return resourceWarehouseRead(ctx, d, meta)
 }
 

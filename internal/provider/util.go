@@ -82,3 +82,31 @@ func waitJobComplete(ctx context.Context, clt *cloudmgr.CoreJobServiceApiService
 	}
 	return fmt.Errorf("Timeout while waiting for state become 'success'. ")
 }
+
+func startService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
+	respStartService, rStartService, errStartService := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+	if errStartService != nil {
+		return fmt.Errorf("Error when calling `CoreServiceApi.StartService`: %v\v", errStartService)
+	}
+	if rStartService.StatusCode != 200 {
+		return fmt.Errorf("Error when calling `CoreServiceApi.StartService`: %s\n", rStartService.Status)
+	}
+	if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStartService.GetId()); eWait != nil {
+		return fmt.Errorf("Error when waiting start service %s\n", eWait.Error())
+	}
+	return nil
+}
+
+func stopService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
+	respStopService, rStopService, errStopService := apiClient.CoreServiceApi.StopService(ctx, id).Execute()
+	if errStopService != nil {
+		return fmt.Errorf("Error when calling `CoreServiceApi.StopService`: %v\v", errStopService)
+	}
+	if rStopService.StatusCode != 200 {
+		return fmt.Errorf("Error when calling `CoreServiceApi.StopService`: %s\n", rStopService.Status)
+	}
+	if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStopService.GetId()); eWait != nil {
+		return fmt.Errorf("Error when waiting stop service %s\n", eWait.Error())
+	}
+	return nil
+}

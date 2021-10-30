@@ -422,6 +422,233 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	id := d.Id()
+	if id == "" {
+		return diag.Errorf("Can not read warehouse,because id is empty")
+	}
+	apiClient := meta.(*cloudmgr.APIClient)
+	isServiceStop := false
+	//step 1: describe instance
+	//step 2: getCount
+	//step 3: judgment expend or shrink
+	//step 4: stop service
+	//step 5: async job
+	//step 6: start service
+
+	if d.HasChange("fdb") && !d.IsNewResource() {
+		component := []string{"fdb"}
+		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+		if errListInstance != nil {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %v\n", errListInstance)
+		}
+		if rListInstance.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
+		}
+		countOld := respListInstance.GetCount()
+
+		fdbPropertiesRaw := d.Get("fdb").(*schema.Set).List()
+		var fdbProperties = fdbPropertiesRaw[0].(map[string]interface{})
+		countNew := fdbProperties["count"].(int)
+
+		if int32(countNew) != countOld {
+			respStopService, rStopService, errStopService := apiClient.CoreServiceApi.StopService(ctx, id).Execute()
+			if errStopService != nil {
+				return diag.Errorf("Error when calling `CoreServiceApi.StopService`: %v\v", errStopService)
+			}
+			if rStopService.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.StopService`: %s\n", rStopService.Status)
+			}
+			if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStopService.GetId()); eWait != nil {
+				return diag.Errorf("Error when waiting stop service %s\n", eWait.Error())
+			}
+			isServiceStop = true
+			componentRequestMap := make(map[string]interface{})
+			var respScaleOut cloudmgr.CommonDescribeJobResponse
+			var rScaleOut *_nethttp.Response
+			var errScaleOut error
+			if int32(countNew) > countOld {
+				componentRequestMap["fdb"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+					Iaas: &cloudmgr.CoreScaleOutIaasResource{
+						Count: Int32(countNew),
+					},
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			} else {
+				var remainInstances = make([]string, countNew)
+				for i := 0; i < countNew; i++ {
+					remainInstances[i] = (*respListInstance.Content)[i].GetId()
+				}
+				componentRequestMap["fdb"] = cloudmgr.CoreScaleInServiceComponentRequest{
+					Instances: &remainInstances,
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			}
+
+			if errScaleOut != nil {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %v\v", errListInstance)
+			}
+			if rScaleOut.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+			}
+			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
+			if err2 != nil {
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
+			}
+		}
+
+		if isServiceStop {
+			respStartService, rStartService, errStartService := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+			if errStartService != nil {
+				return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %v\v", errStartService)
+			}
+			if rStartService.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %s\n", rStartService.Status)
+			}
+			if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStartService.GetId()); eWait != nil {
+				return diag.Errorf("Error when waiting start service %s\n", eWait.Error())
+			}
+		}
+	}
+
+	if d.HasChange("etcd") && !d.IsNewResource() {
+		component := []string{"etcd"}
+		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+		if errListInstance != nil {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %v\n", errListInstance)
+		}
+		if rListInstance.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
+		}
+		countOld := respListInstance.GetCount()
+
+		etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
+		var etcdProperties = etcdPropertiesRaw[0].(map[string]interface{})
+		countNew := etcdProperties["count"].(int)
+
+		if int32(countNew) != countOld {
+			if !isServiceStop {
+				if errStopService := stopService(ctx, id, apiClient); errStopService != nil {
+					return diag.Errorf(errStopService.Error())
+				}
+				isServiceStop = true
+			}
+
+			componentRequestMap := make(map[string]interface{})
+			var respScaleOut cloudmgr.CommonDescribeJobResponse
+			var rScaleOut *_nethttp.Response
+			var errScaleOut error
+			if int32(countNew) > countOld {
+				componentRequestMap["etcd"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+					Iaas: &cloudmgr.CoreScaleOutIaasResource{
+						Count: Int32(countNew),
+					},
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			} else {
+				var remainInstances = make([]string, countNew)
+				for i := 0; i < countNew; i++ {
+					remainInstances[i] = (*respListInstance.Content)[i].GetId()
+				}
+				componentRequestMap["etcd"] = cloudmgr.CoreScaleInServiceComponentRequest{
+					Instances: &remainInstances,
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			}
+
+			if errScaleOut != nil {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %v\v", errListInstance)
+			}
+			if rScaleOut.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+			}
+			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
+			if err2 != nil {
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
+			}
+		}
+	}
+
+	if d.HasChange("catalog") && !d.IsNewResource() {
+		component := []string{"catalog"}
+		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+		if errListInstance != nil {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %v\n", errListInstance)
+		}
+		if rListInstance.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
+		}
+		countOld := respListInstance.GetCount()
+
+		catalogPropertiesRaw := d.Get("catalog").(*schema.Set).List()
+		var catalogProperties = catalogPropertiesRaw[0].(map[string]interface{})
+		countNew := catalogProperties["count"].(int)
+
+		if int32(countNew) != countOld {
+			if !isServiceStop {
+				if errStopService := stopService(ctx, id, apiClient); errStopService != nil {
+					return diag.Errorf(errStopService.Error())
+				}
+				isServiceStop = true
+			}
+			componentRequestMap := make(map[string]interface{})
+			var respScaleOut cloudmgr.CommonDescribeJobResponse
+			var rScaleOut *_nethttp.Response
+			var errScaleOut error
+			if int32(countNew) > countOld {
+				componentRequestMap["catalog"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+					Iaas: &cloudmgr.CoreScaleOutIaasResource{
+						Count: Int32(countNew),
+					},
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			} else {
+				var remainInstances = make([]string, countNew)
+				for i := 0; i < countNew; i++ {
+					remainInstances[i] = (*respListInstance.Content)[i].GetId()
+				}
+				componentRequestMap["catalog"] = cloudmgr.CoreScaleInServiceComponentRequest{
+					Instances: &remainInstances,
+				}
+				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
+					Component: &componentRequestMap,
+				}).Execute()
+			}
+
+			if errScaleOut != nil {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %v\v", errListInstance)
+			}
+			if rScaleOut.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+			}
+			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
+			if err2 != nil {
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
+			}
+		}
+	}
+
+	if isServiceStop {
+		respStartService, rStartService, errStartService := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+		if errStartService != nil {
+			return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %v\v", errStartService)
+		}
+		if rStartService.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %s\n", rStartService.Status)
+		}
+		if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStartService.GetId()); eWait != nil {
+			return diag.Errorf("Error when waiting start service %s\n", eWait.Error())
+		}
+	}
 	return resourceCatalogRead(ctx, d, meta)
 }
 
