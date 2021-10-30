@@ -326,7 +326,7 @@ func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse` (Error not format): %v\n", err)
@@ -359,7 +359,7 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance` (Error not format): %v\n", err)
@@ -472,7 +472,7 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		if err != nil {
 			if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", errInner2.ErrorMessage)
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", err)
@@ -506,7 +506,7 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 				if errScaleOut != nil {
 					if errInner1, ok := errScaleOut.(cloudmgr.GenericOpenAPIError); ok {
 						if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-							return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", errInner2.ErrorMessage)
+							return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
 						}
 					}
 					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errScaleOut)
@@ -539,7 +539,7 @@ func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreServiceApi.DeleteService`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreServiceApi.DeleteService`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService` (Error not format): %v\n", err)

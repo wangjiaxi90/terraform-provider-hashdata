@@ -198,7 +198,7 @@ func resourceComputingCreate(ctx context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.CreateWarehouse_Computing` (Error not format): %v\n", err)
@@ -230,7 +230,7 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreWarehouseServiceApi.DescribeInstance` (Error not format): %v\n", err)
@@ -344,7 +344,7 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		if err != nil {
 			if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", errInner2.ErrorMessage)
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", err)
@@ -446,7 +446,7 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-				return diag.Errorf("Error when calling `CoreServiceApi.DeleteService`: %s\n", errInner2.ErrorMessage)
+				return diag.Errorf("Error when calling `CoreServiceApi.DeleteService`: %s\n", *errInner2.ErrorMessage)
 			}
 		}
 		return diag.Errorf("Error when calling `CoreServiceApi.DeleteService` (Error not format): %v\n", err)
