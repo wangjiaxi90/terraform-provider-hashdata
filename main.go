@@ -18,7 +18,7 @@ import (
 var (
 	// these will be set by the goreleaser configuration
 	// to appropriate values for the compiled binary
-	version = "0.1.4"
+	version = "0.1.5"
 
 	// goreleaser can also pass the specific commit if you want
 	// commit  string = ""
