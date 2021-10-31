@@ -337,7 +337,8 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 	var r *_nethttp.Response
 	var err error
 
-	resp, r, err = apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component([]string{"master"}).Execute() //.DescribeInstance(ctx, id).Execute()
+	resp, r, err = apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component([]string{"monitor"}).Execute()
+	//TODO 这里我要获取哪个component的Instance
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
