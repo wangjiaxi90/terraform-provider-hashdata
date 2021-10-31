@@ -526,7 +526,7 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 					return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
 				}
 			} else {
-				return diag.Errorf("")
+				return diag.Errorf("Not support shrink warehouse")
 			}
 		}
 	}
