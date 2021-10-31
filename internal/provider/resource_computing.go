@@ -465,9 +465,6 @@ func checkComputingCreateSchema(d *schema.ResourceData) (string, error) {
 	if _, ok := masterMap["volume_size"]; !ok {
 		res += "schema master.volume_size field is missing\n"
 	}
-	if _, ok := masterMap["image"]; !ok {
-		res += "schema master.image field is missing\n"
-	}
 	if _, ok := masterMap["zone"]; !ok {
 		res += "schema master.zone field is missing\n"
 	}
@@ -488,9 +485,6 @@ func checkComputingCreateSchema(d *schema.ResourceData) (string, error) {
 	}
 	if _, ok := segmentMap["volume_size"]; !ok {
 		res += "schema segment.volume_size field is missing\n"
-	}
-	if _, ok := segmentMap["image"]; !ok {
-		res += "schema segment.image field is missing\n"
 	}
 	if _, ok := segmentMap["zone"]; !ok {
 		res += "schema segment.zone field is missing\n"
