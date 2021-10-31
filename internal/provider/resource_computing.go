@@ -221,12 +221,12 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	apiClient := meta.(*cloudmgr.APIClient)
-	var resp cloudmgr.CoreDescribeInstanceResponse
+
+	var resp cloudmgr.CoreListInstanceResponse
 	var r *_nethttp.Response
 	var err error
 
-	resp, r, err = apiClient.CoreInstanceServiceApi.DescribeInstance(ctx, id).Execute()
-
+	resp, r, err = apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component([]string{"master"}).Execute() //.DescribeInstance(ctx, id).Execute()
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
@@ -238,19 +238,23 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
 	}
-	if param, ok := resp.GetArchOk(); !ok {
+	if *resp.Count == 0 || *resp.Count > 1 {
+		return diag.Errorf("Error when ListServiceInstance")
+	}
+	master := (*resp.Content)[0]
+	if param, ok := master.GetArchOk(); !ok {
 		d.Set("arch", param)
 	}
-	if param, ok := resp.GetComponentsOk(); !ok {
+	if param, ok := master.GetComponentsOk(); !ok {
 		d.Set("components", param)
 	}
-	if param, ok := resp.GetCreatedAtOk(); !ok {
+	if param, ok := master.GetCreatedAtOk(); !ok {
 		d.Set("created_at", param)
 	}
-	if param, ok := resp.GetDestroyedAtOk(); !ok {
+	if param, ok := master.GetDestroyedAtOk(); !ok {
 		d.Set("destroyed_at", param)
 	}
-	if nic, ok := resp.GetElasticNicOk(); !ok {
+	if nic, ok := master.GetElasticNicOk(); !ok {
 		var nic_map = make(map[string]interface{})
 		if param, ok2 := nic.GetElasticNicIdOk(); !ok2 {
 			nic_map["elastic_nic_id"] = param
@@ -260,19 +264,19 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 		}
 		d.Set("nic", nic_map)
 	}
-	if param, ok := resp.GetHealthStatusOk(); !ok {
+	if param, ok := master.GetHealthStatusOk(); !ok {
 		d.Set("health_status", param)
 	}
-	if param, ok := resp.GetHostnameOk(); !ok {
+	if param, ok := master.GetHostnameOk(); !ok {
 		d.Set("hostname", param)
 	}
-	//if param, ok := resp.GetIdOk(); !ok {
-	//	d.Set("id", param)
-	//}
-	if param, ok := resp.GetImageOk(); !ok {
+	if param, ok := master.GetIdOk(); !ok {
+		d.Set("id", param)
+	}
+	if param, ok := master.GetImageOk(); !ok {
 		d.Set("image", param)
 	}
-	if internet, ok := resp.GetInternetOk(); !ok {
+	if internet, ok := master.GetInternetOk(); !ok {
 		var internet_map = make(map[string]interface{})
 		if param, ok2 := internet.GetBandwidthOk(); !ok2 {
 			internet_map["band_width"] = param
@@ -288,37 +292,37 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 		}
 		d.Set("internet", internet_map)
 	}
-	if param, ok := resp.GetIpaddressesOk(); !ok {
+	if param, ok := master.GetIpaddressesOk(); !ok {
 		d.Set("ipaddresses", param)
 	}
-	if param, ok := resp.GetMessageOk(); !ok {
+	if param, ok := master.GetMessageOk(); !ok {
 		d.Set("message", param)
 	}
-	if param, ok := resp.GetNameOk(); !ok {
+	if param, ok := master.GetNameOk(); !ok {
 		d.Set("name", param)
 	}
-	if param, ok := resp.GetResourcePoolOk(); !ok {
+	if param, ok := master.GetResourcePoolOk(); !ok {
 		d.Set("resource_pool", param)
 	}
-	if param, ok := resp.GetScaleTypeOk(); !ok {
+	if param, ok := master.GetScaleTypeOk(); !ok {
 		d.Set("scale_type", param)
 	}
-	if param, ok := resp.GetServiceOk(); !ok {
+	if param, ok := master.GetServiceOk(); !ok {
 		d.Set("service", param)
 	}
-	if param, ok := resp.GetStatusOk(); !ok {
+	if param, ok := master.GetStatusOk(); !ok {
 		d.Set("status", param)
 	}
-	if param, ok := resp.GetTenantOk(); !ok {
+	if param, ok := master.GetTenantOk(); !ok {
 		d.Set("tenant", param)
 	}
-	if param, ok := resp.GetTypeOk(); !ok {
+	if param, ok := master.GetTypeOk(); !ok {
 		d.Set("type", param)
 	}
-	if param, ok := resp.GetVendorOk(); !ok {
+	if param, ok := master.GetVendorOk(); !ok {
 		d.Set("vendor", param)
 	}
-	if param, ok := resp.GetZoneOk(); !ok {
+	if param, ok := master.GetZoneOk(); !ok {
 		d.Set("zone", param)
 	}
 
@@ -340,82 +344,68 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		//step 4: stop service
 		//step 4: async job
 		component := []string{"segment"}
-		resp, r, err := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
-		if err != nil {
-			if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+		if errListInstance != nil {
+			if errInner1, ok := errListInstance.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
 					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
-			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", err)
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", errListInstance)
 		}
-		if r.StatusCode != 200 {
-			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", r.Status)
+		if rListInstance.StatusCode != 200 {
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
 		}
-		countOld := resp.GetCount()
+		countOld := respListInstance.GetCount()
 
 		segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
 		var segmentProperties = segmentPropertiesRaw[0].(map[string]interface{})
 		countNew := segmentProperties["count"].(int)
 
 		if int32(countNew) != countOld {
-			re, r0, e := apiClient.CoreServiceApi.StopService(ctx, id).Execute()
-			if e != nil {
-				return diag.Errorf("Error when calling `CoreServiceApi.StopService`: %v\v", e)
-			}
-			if r0.StatusCode != 200 {
-				return diag.Errorf("Error when calling `CoreServiceApi.StopService`: %s\n", r0.Status)
-			}
-			if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, re.GetId()); eWait != nil {
-				return diag.Errorf("Error when waiting stop service %s\n", eWait.Error())
+			if errCanShrink := canExpendShrinkService(ctx, id, apiClient); errCanShrink != nil {
+				return diag.Errorf(errCanShrink.Error())
 			}
 			componentRequestMap := make(map[string]interface{})
-			var resp1 cloudmgr.CommonDescribeJobResponse
-			var r1 *_nethttp.Response
-			var err1 error
+			var respScale cloudmgr.CommonDescribeJobResponse
+			var rScale *_nethttp.Response
+			var errScale error
 			if int32(countNew) > countOld {
 				componentRequestMap["segment"] = cloudmgr.CoreScaleOutServiceComponentRequest{
 					Iaas: &cloudmgr.CoreScaleOutIaasResource{
 						Count: Int32(countNew),
 					},
 				}
-				resp1, r1, err1 = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
+				respScale, rScale, errScale = apiClient.CoreServiceApi.ScaleOutService(ctx, id).Body(cloudmgr.CoreScaleOutServiceRequest{
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
 				var remainInstances = make([]string, countNew)
 				for i := 0; i < countNew; i++ {
-					remainInstances[i] = (*resp.Content)[i].GetId()
+					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
 				componentRequestMap["segment"] = cloudmgr.CoreScaleInServiceComponentRequest{
 					Instances: &remainInstances,
 				}
-				resp1, r1, err1 = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
+				respScale, rScale, errScale = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
 					Component: &componentRequestMap,
 				}).Execute()
 			}
+			if errScale != nil {
+				if errInner1, ok := errScale.(cloudmgr.GenericOpenAPIError); ok {
+					if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+						return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+					}
+				}
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errScale)
+			}
+			if rScale.StatusCode != 200 {
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+			}
+			if errWaitJob := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScale.GetId()); errWaitJob != nil {
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
+			}
 
-			if err1 != nil {
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %v\v", err)
-			}
-			if r1.StatusCode != 200 {
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", r.Status)
-			}
-			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp1.GetId())
-			if err2 != nil {
-				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
-			}
-
-			re, r0, e = apiClient.CoreServiceApi.StartService(ctx, id).Execute()
-			if e != nil {
-				return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %v\v", e)
-			}
-			if r0.StatusCode != 200 {
-				return diag.Errorf("Error when calling `CoreServiceApi.StartService`: %s\n", r0.Status)
-			}
-			if eWait := waitJobComplete(ctx, apiClient.CoreJobServiceApi, re.GetId()); eWait != nil {
-				return diag.Errorf("Error when waiting start service %s\n", eWait.Error())
-			}
 		}
 	}
 	return resourceComputingRead(ctx, d, meta)
@@ -425,24 +415,9 @@ func resourceComputingDelete(ctx context.Context, d *schema.ResourceData, meta i
 	apiClient := meta.(*cloudmgr.APIClient)
 	resourceId := d.Id()
 	if resourceId == "" {
-		return diag.Errorf(COMPUTING_ID + " not found! ")
+		return diag.Errorf(WAREHOUSE_ID + " not found! ")
 	}
-
-	False := false
-	resp1, r1, err1 := apiClient.CoreServiceApi.StopService(ctx, resourceId).Body(cloudmgr.CoreStopServiceRequest{
-		Force: &False,
-	}).Execute()
-	if err1 != nil {
-		return diag.Errorf("Error when calling computing `CoreServiceApi.StopService``: %v\n", err1)
-	}
-	if r1.StatusCode != 200 {
-		return diag.Errorf("Stop resource computing fail with %d . ", r1.StatusCode)
-	}
-	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, resp1.GetId()); errRefresh != nil {
-		return diag.Errorf(errRefresh.Error())
-	}
-
-	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Force(true).Execute()
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {

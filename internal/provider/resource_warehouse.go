@@ -539,7 +539,7 @@ func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta i
 	if resourceId == "" {
 		return diag.Errorf(WAREHOUSE_ID + " not found! ")
 	}
-	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Execute()
+	resp, r, err := apiClient.CoreServiceApi.DeleteService(ctx, resourceId).Force(true).Execute()
 	if err != nil {
 		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
 			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
