@@ -110,3 +110,23 @@ func stopService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) 
 	}
 	return nil
 }
+
+func canExpendShrinkService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
+	resp, r, err := apiClient.CoreServiceApi.DescribeService(ctx, id).Execute()
+	if err != nil {
+		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+				return fmt.Errorf("Error when calling `CoreServiceApi.DescribeService`: %s\n", *errInner2.ErrorMessage)
+			}
+		}
+		return fmt.Errorf("Error when calling `CoreServiceApi.DescribeService` (Error not format): %v\n", err)
+	}
+	if r.StatusCode != 200 {
+		return fmt.Errorf("Error when calling `CoreServiceApi.DescribeService` StatusCode != 200: %s\n", r.Status)
+	}
+	currStatus := strings.ToLower(*resp.Status)
+	if currStatus == SERVICE_STARTED {
+		return nil
+	}
+	return fmt.Errorf("Service status should be STARTED ")
+}

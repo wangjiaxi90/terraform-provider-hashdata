@@ -371,7 +371,7 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	if r.StatusCode != 200 {
 		return diag.Errorf("Error status code when calling `CoreWarehouseServiceApi.CreateWarehouse``: %d \n", r.StatusCode)
 	}
-	if *resp.Count == 0 || *resp.Count > 1{
+	if *resp.Count == 0 || *resp.Count > 1 {
 		return diag.Errorf("Error when ListServiceInstance")
 	}
 	master := (*resp.Content)[0]
@@ -500,8 +500,8 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 			var rScaleOut *_nethttp.Response
 			var errScaleOut error
 			if int32(countNew) > countOld {
-				if errStopService := stopService(ctx, id, apiClient); errStopService != nil {
-					return diag.Errorf(errStopService.Error())
+				if errCanShrink := canExpendShrinkService(ctx, id, apiClient); errCanShrink != nil {
+					return diag.Errorf(errCanShrink.Error())
 				}
 				componentRequestMap["segment"] = cloudmgr.CoreScaleOutServiceComponentRequest{
 					Iaas: &cloudmgr.CoreScaleOutIaasResource{
@@ -522,12 +522,8 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 				if rScaleOut.StatusCode != 200 {
 					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rScaleOut.Status)
 				}
-				errWaitJob := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
-				if errWaitJob != nil {
+				if errWaitJob := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId()); errWaitJob != nil {
 					return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
-				}
-				if errStartService := startService(ctx, id, apiClient); errStartService != nil {
-					return diag.Errorf(errStartService.Error())
 				}
 			} else {
 				return diag.Errorf("")

@@ -16,4 +16,5 @@ const (
 	WAREHOUSE_ID           = "warehouse_id"
 	CATALOG_ID             = "catalog_id"
 	COMPUTING_ID           = "computing_id"
+	SERVICE_STARTED        = "started"
 )
