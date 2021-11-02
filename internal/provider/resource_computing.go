@@ -270,9 +270,6 @@ func resourceComputingRead(ctx context.Context, d *schema.ResourceData, meta int
 	if param, ok := master.GetHostnameOk(); !ok {
 		d.Set("hostname", param)
 	}
-	if param, ok := master.GetIdOk(); !ok {
-		d.Set("id", param)
-	}
 	if param, ok := master.GetImageOk(); !ok {
 		d.Set("image", param)
 	}
@@ -380,8 +377,8 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
-				var remainInstances = make([]string, countNew)
-				for i := 0; i < countNew; i++ {
+				var remainInstances = make([]string, countNew-int(countOld))
+				for i := 0; i < countNew-int(countOld); i++ {
 					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
 				componentRequestMap["segment"] = cloudmgr.CoreScaleInServiceComponentRequest{

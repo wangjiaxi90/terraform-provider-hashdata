@@ -403,9 +403,6 @@ func resourceWarehouseRead(ctx context.Context, d *schema.ResourceData, meta int
 	if param, ok := master.GetHostnameOk(); !ok {
 		d.Set("hostname", param)
 	}
-	if param, ok := master.GetIdOk(); !ok {
-		d.Set("id", param)
-	}
 	if param, ok := master.GetImageOk(); !ok {
 		d.Set("image", param)
 	}

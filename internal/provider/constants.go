@@ -17,4 +17,7 @@ const (
 	CATALOG_ID             = "catalog_id"
 	COMPUTING_ID           = "computing_id"
 	SERVICE_STARTED        = "started"
+	CATALOG_FDB            = "fdb"
+	CATALOG_ETCD           = "etcd"
+	CATALOG_CATALOG        = "catalog"
 )

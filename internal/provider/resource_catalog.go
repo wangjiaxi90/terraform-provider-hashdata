@@ -382,9 +382,6 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 	if param, ok := master.GetHostnameOk(); !ok {
 		d.Set("hostname", param)
 	}
-	if param, ok := master.GetIdOk(); !ok {
-		d.Set("id", param)
-	}
 	if param, ok := master.GetImageOk(); !ok {
 		d.Set("image", param)
 	}
@@ -443,6 +440,7 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	//TODO 缩容有BUG 可能是数量上得符合某些规则
 	id := d.Id()
 	if id == "" {
 		return diag.Errorf("Can not read warehouse,because id is empty")
@@ -455,23 +453,23 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	//step 5: async job
 	//step 6: start service
 	errCanShrink := canExpendShrinkService(ctx, id, apiClient)
-	if d.HasChange("fdb") && !d.IsNewResource() {
-		component := []string{"fdb"}
+	if d.HasChange(CATALOG_FDB) && !d.IsNewResource() {
+		component := []string{CATALOG_FDB}
 		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if errListInstance != nil {
 			if errInner1, ok := errListInstance.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
-			return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errListInstance)
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", errListInstance)
 		}
 		if rListInstance.StatusCode != 200 {
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
 		}
 		countOld := respListInstance.GetCount()
 
-		fdbPropertiesRaw := d.Get("fdb").(*schema.Set).List()
+		fdbPropertiesRaw := d.Get(CATALOG_FDB).(*schema.Set).List()
 		var fdbProperties = fdbPropertiesRaw[0].(map[string]interface{})
 		countNew := fdbProperties["count"].(int)
 
@@ -484,7 +482,7 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			var rScaleOut *_nethttp.Response
 			var errScaleOut error
 			if int32(countNew) > countOld {
-				componentRequestMap["fdb"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+				componentRequestMap[CATALOG_FDB] = cloudmgr.CoreScaleOutServiceComponentRequest{
 					Iaas: &cloudmgr.CoreScaleOutIaasResource{
 						Count: Int32(countNew),
 					},
@@ -493,11 +491,11 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
-				var remainInstances = make([]string, countNew)
-				for i := 0; i < countNew; i++ {
+				var remainInstances = make([]string, countNew-int(countOld))
+				for i := 0; i < countNew-int(countOld); i++ {
 					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
-				componentRequestMap["fdb"] = cloudmgr.CoreScaleInServiceComponentRequest{
+				componentRequestMap[CATALOG_FDB] = cloudmgr.CoreScaleInServiceComponentRequest{
 					Instances: &remainInstances,
 				}
 				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
@@ -507,38 +505,38 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			if errScaleOut != nil {
 				if errInner1, ok := errScaleOut.(cloudmgr.GenericOpenAPIError); ok {
 					if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-						return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+						return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\n", *errInner2.ErrorMessage)
 					}
 				}
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errScaleOut)
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService` (Error not format): %v\n", errScaleOut)
 			}
 			if rScaleOut.StatusCode != 200 {
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\n", rListInstance.Status)
 			}
 			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
 			if err2 != nil {
-				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\v", err2)
 			}
 		}
 	}
 
-	if d.HasChange("etcd") && !d.IsNewResource() {
-		component := []string{"etcd"}
+	if d.HasChange(CATALOG_ETCD) && !d.IsNewResource() {
+		component := []string{CATALOG_ETCD}
 		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if errListInstance != nil {
 			if errInner1, ok := errListInstance.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
-			return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errListInstance)
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", errListInstance)
 		}
 		if rListInstance.StatusCode != 200 {
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
 		}
 		countOld := respListInstance.GetCount()
 
-		etcdPropertiesRaw := d.Get("etcd").(*schema.Set).List()
+		etcdPropertiesRaw := d.Get(CATALOG_ETCD).(*schema.Set).List()
 		var etcdProperties = etcdPropertiesRaw[0].(map[string]interface{})
 		countNew := etcdProperties["count"].(int)
 
@@ -551,7 +549,7 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			var rScaleOut *_nethttp.Response
 			var errScaleOut error
 			if int32(countNew) > countOld {
-				componentRequestMap["etcd"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+				componentRequestMap[CATALOG_ETCD] = cloudmgr.CoreScaleOutServiceComponentRequest{
 					Iaas: &cloudmgr.CoreScaleOutIaasResource{
 						Count: Int32(countNew),
 					},
@@ -560,11 +558,11 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
-				var remainInstances = make([]string, countNew)
-				for i := 0; i < countNew; i++ {
+				var remainInstances = make([]string, countNew-int(countOld))
+				for i := 0; i < countNew-int(countOld); i++ {
 					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
-				componentRequestMap["etcd"] = cloudmgr.CoreScaleInServiceComponentRequest{
+				componentRequestMap[CATALOG_ETCD] = cloudmgr.CoreScaleInServiceComponentRequest{
 					Instances: &remainInstances,
 				}
 				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
@@ -589,23 +587,23 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChange("catalog") && !d.IsNewResource() {
-		component := []string{"catalog"}
+	if d.HasChange(CATALOG_CATALOG) && !d.IsNewResource() {
+		component := []string{CATALOG_CATALOG}
 		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if errListInstance != nil {
 			if errInner1, ok := errListInstance.(cloudmgr.GenericOpenAPIError); ok {
 				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
 				}
 			}
-			return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errListInstance)
+			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", errListInstance)
 		}
 		if rListInstance.StatusCode != 200 {
 			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", rListInstance.Status)
 		}
 		countOld := respListInstance.GetCount()
 
-		catalogPropertiesRaw := d.Get("catalog").(*schema.Set).List()
+		catalogPropertiesRaw := d.Get(CATALOG_CATALOG).(*schema.Set).List()
 		var catalogProperties = catalogPropertiesRaw[0].(map[string]interface{})
 		countNew := catalogProperties["count"].(int)
 
@@ -618,7 +616,7 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			var rScaleOut *_nethttp.Response
 			var errScaleOut error
 			if int32(countNew) > countOld {
-				componentRequestMap["catalog"] = cloudmgr.CoreScaleOutServiceComponentRequest{
+				componentRequestMap[CATALOG_CATALOG] = cloudmgr.CoreScaleOutServiceComponentRequest{
 					Iaas: &cloudmgr.CoreScaleOutIaasResource{
 						Count: Int32(countNew),
 					},
@@ -627,11 +625,11 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
-				var remainInstances = make([]string, countNew)
-				for i := 0; i < countNew; i++ {
+				var remainInstances = make([]string, countNew-int(countOld))
+				for i := 0; i < countNew-int(countOld); i++ {
 					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
-				componentRequestMap["catalog"] = cloudmgr.CoreScaleInServiceComponentRequest{
+				componentRequestMap[CATALOG_CATALOG] = cloudmgr.CoreScaleInServiceComponentRequest{
 					Instances: &remainInstances,
 				}
 				respScaleOut, rScaleOut, errScaleOut = apiClient.CoreServiceApi.ScaleInService(ctx, id).Body(cloudmgr.CoreScaleInServiceRequest{
@@ -641,17 +639,17 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			if errScaleOut != nil {
 				if errInner1, ok := errScaleOut.(cloudmgr.GenericOpenAPIError); ok {
 					if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-						return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService`: %s\n", *errInner2.ErrorMessage)
+						return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\n", *errInner2.ErrorMessage)
 					}
 				}
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` (Error not format): %v\n", errScaleOut)
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService` (Error not format): %v\n", errScaleOut)
 			}
 			if rScaleOut.StatusCode != 200 {
-				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\n", rListInstance.Status)
+				return diag.Errorf("Error when calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\n", rListInstance.Status)
 			}
 			err2 := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respScaleOut.GetId())
 			if err2 != nil {
-				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", err2)
+				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService or ScaleInService`: %s\v", err2)
 			}
 		}
 	}
