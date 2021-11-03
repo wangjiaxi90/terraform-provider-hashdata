@@ -377,8 +377,8 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 					Component: &componentRequestMap,
 				}).Execute()
 			} else {
-				var remainInstances = make([]string, countNew-int(countOld))
-				for i := 0; i < countNew-int(countOld); i++ {
+				var remainInstances = make([]string, int(countOld)-countNew)
+				for i := 0; i < int(countOld)-countNew; i++ {
 					remainInstances[i] = (*respListInstance.Content)[i].GetId()
 				}
 				componentRequestMap["segment"] = cloudmgr.CoreScaleInServiceComponentRequest{
