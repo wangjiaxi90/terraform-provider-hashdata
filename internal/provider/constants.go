@@ -20,4 +20,7 @@ const (
 	CATALOG_FDB            = "fdb"
 	CATALOG_ETCD           = "etcd"
 	CATALOG_CATALOG        = "catalog"
+	OPERATE_START          = "start"
+	OPERATE_STOP           = "stop"
+	OPERATE_RESTART        = "restart"
 )

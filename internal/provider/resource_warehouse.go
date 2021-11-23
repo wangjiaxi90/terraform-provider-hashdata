@@ -34,6 +34,11 @@ func resourceWarehouse() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
+			"operation": {
+				Description: "operation.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
 			"master": {
 				Description: "master.",
 				Type:        schema.TypeSet,
@@ -527,6 +532,23 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 	if len(targetSize) != 0 {
 		if errResize := resizeVolume(ctx, id, apiClient, targetSize); errResize != nil {
 			return diag.Errorf(errResize.Error())
+		}
+	}
+	if op, ok := d.GetOk("operation"); ok {
+		if op == OPERATE_START {
+			if errStart := startService(ctx, id, apiClient); errStart != nil {
+				return diag.Errorf(errStart.Error())
+			}
+		} else if op == OPERATE_STOP {
+			if errStop := stopService(ctx, id, apiClient); errStop != nil {
+				return diag.Errorf(errStop.Error())
+			}
+		} else if op == OPERATE_RESTART {
+			if errReStart := restartService(ctx, id, apiClient); errReStart != nil {
+				return diag.Errorf(errReStart.Error())
+			}
+		} else {
+			return diag.Errorf("Wrong operation,operation must in one of 'start','stop' ,'restart'.")
 		}
 	}
 	return resourceWarehouseRead(ctx, d, meta)

@@ -37,6 +37,11 @@ func resourceComputing() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 			},
+			"operation": {
+				Description: "operation.",
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
 			"master": {
 				Description: "master.",
 				Type:        schema.TypeSet,
@@ -330,7 +335,7 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	apiClient := meta.(*cloudmgr.APIClient)
 	targetSize := make(map[string]interface{})
-	if d.HasChange("master") && !d.IsNewResource(){
+	if d.HasChange("master") && !d.IsNewResource() {
 		if err := getVolumeResizeMap(ctx, "master", id, apiClient, d, &targetSize); err != nil {
 			return diag.Errorf(err.Error())
 		}
@@ -414,6 +419,24 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 			if errResize := resizeVolume(ctx, id, apiClient, targetSize); errResize != nil {
 				return diag.Errorf(errResize.Error())
 			}
+		}
+	}
+
+	if op, ok := d.GetOk("operation"); ok {
+		if op == OPERATE_START {
+			if errStart := startService(ctx, id, apiClient); errStart != nil {
+				return diag.Errorf(errStart.Error())
+			}
+		} else if op == OPERATE_STOP {
+			if errStop := stopService(ctx, id, apiClient); errStop != nil {
+				return diag.Errorf(errStop.Error())
+			}
+		} else if op == OPERATE_RESTART {
+			if errReStart := restartService(ctx, id, apiClient); errReStart != nil {
+				return diag.Errorf(errReStart.Error())
+			}
+		} else {
+			return diag.Errorf("Wrong operation,operation must in one of 'start','stop' ,'restart'.")
 		}
 	}
 	return resourceComputingRead(ctx, d, meta)
