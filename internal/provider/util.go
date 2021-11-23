@@ -85,8 +85,19 @@ func waitJobComplete(ctx context.Context, clt *cloudmgr.CoreJobServiceApiService
 }
 
 func startService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
+
+	respDes,rDes,errDes:= apiClient.CoreServiceApi.DescribeService(ctx,id).Execute()
+	if errDes = checkErrAndNetResponse(errDes, rDes, "CoreServiceApi.DescribeService"); errDes != nil {
+		return errDes
+	}
+	if strings.ToLower(*respDes.Status) == "started"{
+		return nil
+	}
+	if strings.ToLower(*respDes.Status) != "stopped"{
+		return fmt.Errorf("Service should be stopped when calling startService. ")
+	}
 	respDep, rDep, errDep := apiClient.CoreServiceApi.ListServiceDependent(ctx, id).Execute()
-	if errDep = checkErrAndNetResponse(errDep, rDep, "CoreServiceApi.StopService"); errDep != nil {
+	if errDep = checkErrAndNetResponse(errDep, rDep, "CoreServiceApi.ListServiceDependent"); errDep != nil {
 		return errDep
 	}
 	respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Body(cloudmgr.CoreStartServiceRequest{}).Execute()
@@ -109,9 +120,19 @@ func startService(ctx context.Context, id string, apiClient *cloudmgr.APIClient)
 }
 
 func stopService(ctx context.Context, id string, apiClient *cloudmgr.APIClient) error {
+	respDes,rDes,errDes:= apiClient.CoreServiceApi.DescribeService(ctx,id).Execute()
+	if errDes = checkErrAndNetResponse(errDes, rDes, "CoreServiceApi.DescribeService"); errDes != nil {
+		return errDes
+	}
+	if strings.ToLower(*respDes.Status) == "stopped"{
+		return nil
+	}
+	if strings.ToLower(*respDes.Status) != "started"{
+		return fmt.Errorf("Service should be stopped when calling startService. ")
+	}
 	force := true
 	respDep, rDep, errDep := apiClient.CoreServiceApi.ListServiceDependent(ctx, id).Execute()
-	if errDep = checkErrAndNetResponse(errDep, rDep, "CoreServiceApi.StopService"); errDep != nil {
+	if errDep = checkErrAndNetResponse(errDep, rDep, "CoreServiceApi.ListServiceDependent"); errDep != nil {
 		return errDep
 	}
 	for i := 0; i < int(*respDep.Count); i++ {
