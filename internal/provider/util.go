@@ -151,22 +151,22 @@ func getVolumeResizeMap(ctx context.Context, componentInput string, id string, a
 	//volume
 	component := []string{componentInput}
 	respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
-	if errListInstance = checkErrAndNetResponse(errListInstance, rListInstance, "CoreServiceApi.ListServiceInstance with component master"); errListInstance != nil {
+	if errListInstance = checkErrAndNetResponse(errListInstance, rListInstance, "CoreServiceApi.ListServiceInstance with component "+componentInput); errListInstance != nil {
 		return fmt.Errorf(errListInstance.Error())
 	}
 	respListVolume, rListVolume, errListVolume := apiClient.CoreInstanceServiceApi.ListVolume(ctx, respListInstance.GetContent()[0].GetId()).Execute()
 	if errListVolume = checkErrAndNetResponse(errListVolume, rListVolume, "CoreServiceApi.ListVolume with id "+respListInstance.GetContent()[0].GetId()); errListVolume != nil {
 		return fmt.Errorf(errListVolume.Error())
 	}
-	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
-	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
+	componentPropertiesRaw := d.Get(componentInput).(*schema.Set).List()
+	var componentProperties = componentPropertiesRaw[0].(map[string]interface{})
 	currServiceSize := int(*(*(respListVolume.Content))[0].Size)
-	currLocalSize := masterProperties["volume_size"].(int)
+	currLocalSize := componentProperties["volume_size"].(int)
 	if currLocalSize < currServiceSize {
 		return fmt.Errorf("Not support volume size shrink. ")
 	}
 	if currLocalSize > currServiceSize {
-		respDescribeVolumeType, rDescribeVolumeType, errDescribeVolumeType := apiClient.CoreVolumeTypeServiceApi.DescribeVolumeType(context.Background(), masterProperties["volume_type"].(string)).Execute()
+		respDescribeVolumeType, rDescribeVolumeType, errDescribeVolumeType := apiClient.CoreVolumeTypeServiceApi.DescribeVolumeType(context.Background(), componentProperties["volume_type"].(string)).Execute()
 		if errDescribeVolumeType = checkErrAndNetResponse(errDescribeVolumeType, rDescribeVolumeType, "Describe master volume type"); errDescribeVolumeType != nil {
 			return fmt.Errorf(errDescribeVolumeType.Error())
 		}
