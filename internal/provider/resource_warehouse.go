@@ -525,34 +525,10 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 	if len(targetSize) != 0 {
-		force := true
-		respStop, rStop, errStop := apiClient.CoreServiceApi.StopService(ctx, id).Body(cloudmgr.CoreStopServiceRequest{
-			Force: &force,
-		}).Execute()
-		if errStop = checkErrAndNetResponse(errStop, rStop, "CoreServiceApi.StopService"); errStop != nil {
-			return diag.Errorf(errStop.Error())
-		}
-		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStop.GetId()); errRefresh != nil {
-			return diag.Errorf(errRefresh.Error())
-		}
-		respResize, rResize, errResize := apiClient.CoreServiceApi.ResizeVolumes(ctx, id).Body(cloudmgr.CoreResizeServiceVolumesRequest{
-			TargetVolumeSize: &targetSize,
-		}).Execute()
-		if errResize = checkErrAndNetResponse(errResize, rResize, "CoreServiceApi.ResizeVolumes"); errResize != nil {
+		if errResize := resizeVolume(ctx, id, apiClient, targetSize); errResize != nil {
 			return diag.Errorf(errResize.Error())
 		}
-		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respResize.GetId()); errRefresh != nil {
-			return diag.Errorf(errRefresh.Error())
-		}
-		respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
-		if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
-			return diag.Errorf(errStart.Error())
-		}
-		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
-			return diag.Errorf(errRefresh.Error())
-		}
 	}
-
 	return resourceWarehouseRead(ctx, d, meta)
 }
 
