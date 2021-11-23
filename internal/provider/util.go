@@ -220,6 +220,13 @@ func resizeVolume(ctx context.Context, id string, apiClient *cloudmgr.APIClient,
 	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respResize.GetId()); errRefresh != nil {
 		return errRefresh
 	}
+	respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Body(cloudmgr.CoreStartServiceRequest{}).Execute()
+	if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
+		return errStart
+	}
+	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
+		return errRefresh
+	}
 	for i := 0; i < int(*respDep.Count); i++ {
 		respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, *(*respDep.Content)[i].Dependent).Body(cloudmgr.CoreStartServiceRequest{}).Execute()
 		if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
@@ -228,13 +235,6 @@ func resizeVolume(ctx context.Context, id string, apiClient *cloudmgr.APIClient,
 		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
 			return errRefresh
 		}
-	}
-	respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Body(cloudmgr.CoreStartServiceRequest{}).Execute()
-	if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
-		return errStart
-	}
-	if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
-		return errRefresh
 	}
 	return nil
 }
