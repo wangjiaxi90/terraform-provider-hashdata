@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	_nethttp "net/http"
+	"strconv"
 )
 
 func resourceWarehouse() *schema.Resource {
@@ -39,11 +40,6 @@ func resourceWarehouse() *schema.Resource {
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"count": {
-							Description: "master count.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
 						"instance_type": {
 							Description: "master instance_type.",
 							Type:        schema.TypeString,
@@ -185,7 +181,7 @@ func resourceWarehouse() *schema.Resource {
 func resourceWarehouseCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	body := *cloudmgr.NewCoreCreateWarehouseRequest()
 	apiClient := meta.(*cloudmgr.APIClient)
-	errMsg, err2 := checkWarehouseCreateSchema(d)
+	errMsg, err2 := checkWarehouseCreateSchema(d, apiClient)
 	if err2 != nil {
 		return diag.Errorf(errMsg)
 	}
@@ -466,31 +462,32 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("Can not read warehouse,because id is empty")
 	}
 	apiClient := meta.(*cloudmgr.APIClient)
+	targetSize := make(map[string]interface{})
+	if d.HasChange("master") && !d.IsNewResource() {
+		//volume
+		if err := getVolumeResizeMap(ctx, "master", id, apiClient, d, &targetSize); err != nil {
+			return diag.Errorf(err.Error())
+		}
+	}
+
 	if d.HasChange("segment") && !d.IsNewResource() {
 		//step 1: describe instance
 		//step 2: getCount
 		//step 3: judgment expend or shrink
 		//step 4: stop service
 		//step 4: async job
+		if err := getVolumeResizeMap(ctx, "segment", id, apiClient, d, &targetSize); err != nil {
+			return diag.Errorf(err.Error())
+		}
 		component := []string{"segment"}
 		resp, r, err := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
-		if err != nil {
-			if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
-				if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
-					return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance`: %s\n", *errInner2.ErrorMessage)
-				}
-			}
-			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance` (Error not format): %v\n", err)
-		}
-		if r.StatusCode != 200 {
-			return diag.Errorf("Error when calling `CoreServiceApi.ListServiceInstance``: %s\n", r.Status)
+		if err = checkErrAndNetResponse(err, r, "CoreServiceApi.ListServiceInstance with component segment"); err != nil {
+			return diag.Errorf(err.Error())
 		}
 		countOld := resp.GetCount()
-
 		segmentPropertiesRaw := d.Get("segment").(*schema.Set).List()
 		var segmentProperties = segmentPropertiesRaw[0].(map[string]interface{})
 		countNew := segmentProperties["count"].(int)
-
 		if int32(countNew) != countOld {
 			componentRequestMap := make(map[string]interface{})
 			var respScaleOut cloudmgr.CommonDescribeJobResponse
@@ -527,6 +524,35 @@ func resourceWarehouseUpdate(ctx context.Context, d *schema.ResourceData, meta i
 			}
 		}
 	}
+	if len(targetSize) != 0 {
+		force := true
+		respStop, rStop, errStop := apiClient.CoreServiceApi.StopService(ctx, id).Body(cloudmgr.CoreStopServiceRequest{
+			Force: &force,
+		}).Execute()
+		if errStop = checkErrAndNetResponse(errStop, rStop, "CoreServiceApi.StopService"); errStop != nil {
+			return diag.Errorf(errStop.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStop.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respResize, rResize, errResize := apiClient.CoreServiceApi.ResizeVolumes(ctx, id).Body(cloudmgr.CoreResizeServiceVolumesRequest{
+			TargetVolumeSize: &targetSize,
+		}).Execute()
+		if errResize = checkErrAndNetResponse(errResize, rResize, "CoreServiceApi.ResizeVolumes"); errResize != nil {
+			return diag.Errorf(errResize.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respResize.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+		if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
+			return diag.Errorf(errStart.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+	}
+
 	return resourceWarehouseRead(ctx, d, meta)
 }
 
@@ -555,7 +581,7 @@ func resourceWarehouseDelete(ctx context.Context, d *schema.ResourceData, meta i
 	return nil
 }
 
-func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
+func checkWarehouseCreateSchema(d *schema.ResourceData, apiClient *cloudmgr.APIClient) (string, error) {
 	res := ""
 	_, ok := d.GetOk("name")
 	if !ok {
@@ -573,12 +599,31 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if _, ok := masterMap["instance_type"]; !ok {
 		res += "schema master.instance_type field is missing\n"
 	}
-	if _, ok := masterMap["volume_type"]; !ok {
+	masterVolumeType, ok := masterMap["volume_type"]
+	if !ok {
 		res += "schema master.volume_type field is missing\n"
 	}
-	if _, ok := masterMap["volume_size"]; !ok {
+	masterVolumeSize, ok := masterMap["volume_size"]
+	if !ok {
 		res += "schema master.volume_size field is missing\n"
 	}
+
+	resp, r, err := apiClient.CoreVolumeTypeServiceApi.DescribeVolumeType(context.Background(), masterVolumeType.(string)).Execute()
+	if err = checkErrAndNetResponse(err, r, "Describe master volume type"); err != nil {
+		res += err.Error()
+		return "", fmt.Errorf(res)
+	}
+
+	minSize := int(*resp.MinSize)
+	maxSize := int(*resp.MaxSize)
+	step := int(*resp.StepSize)
+	if masterVolumeSize.(int) > maxSize || masterVolumeSize.(int) < minSize {
+		res += "master volume size should less than " + strconv.Itoa(maxSize) + " and more than " + strconv.Itoa(minSize)
+	}
+	if (masterVolumeSize.(int)-minSize)%step != 0 {
+		res += "master volume size should be start with " + strconv.Itoa(minSize) + " and step of " + strconv.Itoa(step)
+	}
+
 	if _, ok := masterMap["zone"]; !ok {
 		res += "schema master.zone field is missing\n"
 	}
@@ -594,30 +639,35 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if _, ok := segmentMap["instance_type"]; !ok {
 		res += "schema segment.instance_type field is missing\n"
 	}
-	if _, ok := segmentMap["volume_type"]; !ok {
+	segmentVolumeType, ok := segmentMap["volume_type"]
+	if !ok {
 		res += "schema segment.volume_type field is missing\n"
 	}
-	if _, ok := segmentMap["volume_size"]; !ok {
+	if segmentVolumeType != masterVolumeType {
+		resp, r, err := apiClient.CoreVolumeTypeServiceApi.DescribeVolumeType(context.Background(), masterVolumeType.(string)).Execute()
+		if err = checkErrAndNetResponse(err, r, "Describe segment volume type"); err != nil {
+			res += err.Error()
+			return "", fmt.Errorf(res)
+		}
+		minSize = int(*resp.MinSize)
+		maxSize = int(*resp.MaxSize)
+		step = int(*resp.StepSize)
+	}
+	segmentVolumeSize, ok := segmentMap["volume_size"]
+	if !ok {
 		res += "schema segment.volume_size field is missing\n"
 	}
+
+	if segmentVolumeSize.(int) > maxSize || segmentVolumeSize.(int) < minSize {
+		res += "master volume size should less than " + strconv.Itoa(maxSize) + " and more than " + strconv.Itoa(minSize)
+	}
+	if (segmentVolumeSize.(int)-minSize)%step != 0 {
+		res += "master volume size should be start with " + strconv.Itoa(minSize) + " and step of " + strconv.Itoa(step)
+	}
+
 	if _, ok := segmentMap["zone"]; !ok {
 		res += "schema segment.zone field is missing\n"
 	}
-
-	//extraRaw, ok := d.GetOk("extra")
-	//if !ok {
-	//	res += "schema extra field is missing\n"
-	//}
-	//extraMap := extraRaw.(map[string]interface{})
-	//if _, ok := extraMap["vpc"]; !ok {
-	//	res += "schema extra.vpc field is missing\n"
-	//}
-	//if _, ok := extraMap["subnet"]; !ok {
-	//	res += "schema extra.subnet field is missing\n"
-	//}
-	//if _, ok := extraMap["keypair"]; !ok {
-	//	res += "schema extra.keypair field is missing\n"
-	//}
 
 	metadataRaw, ok := d.GetOk("metadata")
 	if !ok {
@@ -633,21 +683,6 @@ func checkWarehouseCreateSchema(d *schema.ResourceData) (string, error) {
 	if _, ok := metadataMap["default_password"]; !ok {
 		res += "schema metadata.default_password field is missing\n"
 	}
-	//if _, ok := metadataMap["logic_part"]; !ok {
-	//	res += "schema metadata.logic_part field is missing\n"
-	//}
-
-	//featureRaw, ok := d.GetOk("feature")
-	//if !ok {
-	//	res += "schema feature field is missing\n"
-	//}
-	//featureMap := featureRaw.(map[string]interface{})
-	//if _, ok := featureMap["local_storage"]; !ok {
-	//	res += "schema feature.local_storage field is missing\n"
-	//}
-	//if _, ok := featureMap["mirror_standby"]; !ok {
-	//	res += "schema feature.mirror_standby field is missing\n"
-	//}
 	if res != "" {
 		return res, fmt.Errorf("Input is illegal. ")
 	}

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/wangjiaxi90/terraform-provider-hashdata/internal/provider/cloudmgr"
 	"log"
 	"math/rand"
@@ -129,4 +130,55 @@ func canExpendShrinkService(ctx context.Context, id string, apiClient *cloudmgr.
 		return nil
 	}
 	return fmt.Errorf("Service status should be STARTED ")
+}
+
+func checkErrAndNetResponse(err error, r *_nethttp.Response, content string) error {
+	if err != nil {
+		if errInner1, ok := err.(cloudmgr.GenericOpenAPIError); ok {
+			if errInner2, ok := errInner1.Model().(cloudmgr.CommonActionResponse); ok {
+				return fmt.Errorf("Error when calling `%s`: %s\n", content, *errInner2.ErrorMessage)
+			}
+		}
+		return fmt.Errorf("Error when calling `%s` (Error not format): %v\n", content, err)
+	}
+	if r.StatusCode != 200 {
+		return fmt.Errorf("Wrong response with %s and code %d ", content, r.StatusCode)
+	}
+	return nil
+}
+
+func getVolumeResizeMap(ctx context.Context, componentInput string, id string, apiClient *cloudmgr.APIClient, d *schema.ResourceData, targetSize *map[string]interface{}) error {
+	//volume
+	component := []string{componentInput}
+	respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
+	if errListInstance = checkErrAndNetResponse(errListInstance, rListInstance, "CoreServiceApi.ListServiceInstance with component master"); errListInstance != nil {
+		return fmt.Errorf(errListInstance.Error())
+	}
+	respListVolume, rListVolume, errListVolume := apiClient.CoreInstanceServiceApi.ListVolume(ctx, respListInstance.GetContent()[0].GetId()).Execute()
+	if errListVolume = checkErrAndNetResponse(errListVolume, rListVolume, "CoreServiceApi.ListVolume with id "+respListInstance.GetContent()[0].GetId()); errListVolume != nil {
+		return fmt.Errorf(errListVolume.Error())
+	}
+	masterPropertiesRaw := d.Get("master").(*schema.Set).List()
+	var masterProperties = masterPropertiesRaw[0].(map[string]interface{})
+	currServiceSize := int(*(*(respListVolume.Content))[0].Size)
+	currLocalSize := masterProperties["volume_size"].(int)
+	if currLocalSize < currServiceSize {
+		return fmt.Errorf("Not support volume size shrink. ")
+	}
+	if currLocalSize > currServiceSize {
+		respDescribeVolumeType, rDescribeVolumeType, errDescribeVolumeType := apiClient.CoreVolumeTypeServiceApi.DescribeVolumeType(context.Background(), masterProperties["volume_type"].(string)).Execute()
+		if errDescribeVolumeType = checkErrAndNetResponse(errDescribeVolumeType, rDescribeVolumeType, "Describe master volume type"); errDescribeVolumeType != nil {
+			return fmt.Errorf(errDescribeVolumeType.Error())
+		}
+		maxSize := int(*respDescribeVolumeType.MaxSize)
+		step := int(*respDescribeVolumeType.StepSize)
+		if currLocalSize > maxSize {
+			return fmt.Errorf(componentInput + " volume size should less than " + strconv.Itoa(maxSize))
+		}
+		if (currLocalSize-currServiceSize)%step != 0 {
+			return fmt.Errorf(componentInput + " volume size should be step of " + strconv.Itoa(step))
+		}
+		(*targetSize)[componentInput] = currLocalSize
+	}
+	return nil
 }

@@ -13,7 +13,7 @@ func resourceCatalog() *schema.Resource {
 	return &schema.Resource{
 		// This description is used by the documentation generator and the language server.
 		Description: "Sample resource in the Terraform provider Catalog.",
-
+		//TODO 硬盘扩容最大最小值步长。 服务启动停止  成功后结果输出 master count去掉
 		CreateContext: resourceCatalogCreate,
 		ReadContext:   resourceCatalogRead,
 		UpdateContext: resourceCatalogUpdate,
@@ -332,7 +332,6 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	apiClient := meta.(*cloudmgr.APIClient)
-
 	var resp cloudmgr.CoreListInstanceResponse
 	var r *_nethttp.Response
 	var err error
@@ -440,7 +439,6 @@ func resourceCatalogRead(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	//TODO 缩容有BUG 可能是数量上得符合某些规则
 	id := d.Id()
 	if id == "" {
 		return diag.Errorf("Can not read warehouse,because id is empty")
@@ -453,7 +451,11 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	//step 5: async job
 	//step 6: start service
 	errCanShrink := canExpendShrinkService(ctx, id, apiClient)
+	targetSize := make(map[string]interface{})
 	if d.HasChange(CATALOG_FDB) && !d.IsNewResource() {
+		if err := getVolumeResizeMap(ctx, "fdb", id, apiClient, d, &targetSize); err != nil {
+			return diag.Errorf(err.Error())
+		}
 		component := []string{CATALOG_FDB}
 		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if errListInstance != nil {
@@ -654,6 +656,34 @@ func resourceCatalogUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	if len(targetSize) != 0 {
+		force := true
+		respStop, rStop, errStop := apiClient.CoreServiceApi.StopService(ctx, id).Body(cloudmgr.CoreStopServiceRequest{
+			Force: &force,
+		}).Execute()
+		if errStop = checkErrAndNetResponse(errStop, rStop, "CoreServiceApi.StopService"); errStop != nil {
+			return diag.Errorf(errStop.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStop.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respResize, rResize, errResize := apiClient.CoreServiceApi.ResizeVolumes(ctx, id).Body(cloudmgr.CoreResizeServiceVolumesRequest{
+			TargetVolumeSize: &targetSize,
+		}).Execute()
+		if errResize = checkErrAndNetResponse(errResize, rResize, "CoreServiceApi.ResizeVolumes"); errResize != nil {
+			return diag.Errorf(errResize.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respResize.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+		if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
+			return diag.Errorf(errStart.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+	}
 	return resourceCatalogRead(ctx, d, meta)
 }
 

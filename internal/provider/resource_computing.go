@@ -43,11 +43,6 @@ func resourceComputing() *schema.Resource {
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"count": {
-							Description: "master count.",
-							Type:        schema.TypeInt,
-							Optional:    true,
-						},
 						"instance_type": {
 							Description: "master instance_type.",
 							Type:        schema.TypeString,
@@ -334,12 +329,21 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("Can not read warehouse,because id is empty")
 	}
 	apiClient := meta.(*cloudmgr.APIClient)
+	targetSize := make(map[string]interface{})
+	if d.HasChange("master") && !d.IsNewResource(){
+		if err := getVolumeResizeMap(ctx, "master", id, apiClient, d, &targetSize); err != nil {
+			return diag.Errorf(err.Error())
+		}
+	}
 	if d.HasChange("segment") && !d.IsNewResource() {
 		//step 1: describe instance
 		//step 2: getCount
 		//step 3: judgment expend or shrink
 		//step 4: stop service
 		//step 4: async job
+		if err := getVolumeResizeMap(ctx, "segment", id, apiClient, d, &targetSize); err != nil {
+			return diag.Errorf(err.Error())
+		}
 		component := []string{"segment"}
 		respListInstance, rListInstance, errListInstance := apiClient.CoreServiceApi.ListServiceInstance(ctx, id).Component(component).Execute()
 		if errListInstance != nil {
@@ -403,6 +407,34 @@ func resourceComputingUpdate(ctx context.Context, d *schema.ResourceData, meta i
 				return diag.Errorf("Error when wait calling `CoreServiceApi.ScaleOutService` or ScaleInService: %s\v", errWaitJob)
 			}
 
+		}
+	}
+	if len(targetSize) != 0 {
+		force := true
+		respStop, rStop, errStop := apiClient.CoreServiceApi.StopService(ctx, id).Body(cloudmgr.CoreStopServiceRequest{
+			Force: &force,
+		}).Execute()
+		if errStop = checkErrAndNetResponse(errStop, rStop, "CoreServiceApi.StopService"); errStop != nil {
+			return diag.Errorf(errStop.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStop.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respResize, rResize, errResize := apiClient.CoreServiceApi.ResizeVolumes(ctx, id).Body(cloudmgr.CoreResizeServiceVolumesRequest{
+			TargetVolumeSize: &targetSize,
+		}).Execute()
+		if errResize = checkErrAndNetResponse(errResize, rResize, "CoreServiceApi.ResizeVolumes"); errResize != nil {
+			return diag.Errorf(errResize.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respResize.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
+		}
+		respStart, rStart, errStart := apiClient.CoreServiceApi.StartService(ctx, id).Execute()
+		if errStart = checkErrAndNetResponse(errStart, rStart, "CoreServiceApi.StartService"); errStart != nil {
+			return diag.Errorf(errStart.Error())
+		}
+		if errRefresh := waitJobComplete(ctx, apiClient.CoreJobServiceApi, respStart.GetId()); errRefresh != nil {
+			return diag.Errorf(errRefresh.Error())
 		}
 	}
 	return resourceComputingRead(ctx, d, meta)
